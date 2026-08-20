@@ -2,6 +2,8 @@
 
 快教会你的 AI Agent 用 mihomo-ctrl 来克服网络障碍。
 
+![mihomo-ctrl CLI demo](docs/demo.gif)
+
 > ⚠️ [mihomo-ctrl](https://github.com/wonder-missing/mihomo-ctrl) 并不包含 Mihomo 内核本身，请自行参阅 [Mihomo 文档](https://wiki.metacubex.one/)。
 
 本工具最初为 AI Agent 而作，由于 Claude Code 在帮我探索第三方 API 过程中频繁因 `429 Too Many Requests`、`403 Forbidden` 甚至网络不可达而敷衍了事。
@@ -28,7 +30,13 @@ uv tool install "mihomo-ctrl[tui]"
 uv tool install "mihomo-ctrl[tui] @ git+https://github.com/wonder-missing/mihomo-ctrl"
 ```
 
-若没有 uv，可以用下面的脚本（从 GitHub `main` 安装）。**脚本会先安装 uv 到 `~/.local/bin`，并在继续前询问确认**：
+已安装 [pipx](https://pipx.pypa.io/) 时：
+
+```bash
+pipx install "mihomo-ctrl[tui]"
+```
+
+若没有 uv / pipx，可以用下面的脚本（从 GitHub `main` 安装）。**脚本会先安装 uv 到 `~/.local/bin`，并在继续前询问确认**：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wonder-missing/mihomo-ctrl/main/install.sh | bash
