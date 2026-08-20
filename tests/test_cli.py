@@ -1,5 +1,8 @@
+from importlib.metadata import version
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from mihomo_ctrl.__main__ import (
     _print_groups,
@@ -31,6 +34,16 @@ def test_parser_aliases() -> None:
     args = parser.parse_args(["unpin", "自动选择"])
     assert args.command == "unpin"
     assert args.group == "自动选择"
+
+
+def test_version_option_prints_package_version(capsys) -> None:
+    parser = build_parser()
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["--version"])
+    assert exc_info.value.code == 0
+    out = capsys.readouterr().out
+    assert version("mihomo-ctrl") in out
+    assert "unknown" not in out
 
 
 def test_lsg_group_prints_nodes_by_delay(capsys) -> None:

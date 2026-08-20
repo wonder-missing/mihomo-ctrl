@@ -101,6 +101,33 @@ def cmd_reset(args: argparse.Namespace) -> None:
         print(f"[INFO] Cache file not found: {target} (already clean)")
 
 
+class VersionAction(argparse.Action):
+    def __init__(self, option_strings: list[str], dest: str, **_kwargs: object) -> None:
+        super().__init__(
+            option_strings,
+            dest=argparse.SUPPRESS,
+            default=argparse.SUPPRESS,
+            nargs=0,
+            help="显示版本号并退出",
+        )
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        _namespace: argparse.Namespace,
+        _values: object,
+        _option_string: str | None = None,
+    ) -> None:
+        from importlib.metadata import PackageNotFoundError, version
+
+        try:
+            pkg_version = version("mihomo-ctrl")
+        except PackageNotFoundError:
+            pkg_version = "unknown"
+        print(f"{parser.prog} {pkg_version}")
+        parser.exit()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Mihomo CLI 控制工具。用 --help 即可当作 SKILL。",
@@ -131,6 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
   mihomo-ctrl unpin 自动选择
 """,
     )
+    parser.add_argument("-V", "--version", action=VersionAction)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     p_groups = subparsers.add_parser(
