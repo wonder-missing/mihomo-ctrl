@@ -2,7 +2,7 @@
 
 快教会你的 AI Agent 用 mihomo-ctrl 来克服网络障碍。
 
-> 注意 [mihomo-ctrl](https://github.com/wonder-missing/mihomo-ctrl) 并不包含 Mihomo 内核本身，请自行参阅 [Mihomo 文档](https://wiki.metacubex.one/)。
+> ⚠️ [mihomo-ctrl](https://github.com/wonder-missing/mihomo-ctrl) 并不包含 Mihomo 内核本身，请自行参阅 [Mihomo 文档](https://wiki.metacubex.one/)。
 
 本工具最初为 AI Agent 而作，由于 Claude Code 在帮我探索第三方 API 过程中频繁因 `429 Too Many Requests`、`403 Forbidden` 甚至网络不可达而敷衍了事。
 
@@ -10,17 +10,25 @@
 
 拿到 `mihomo-ctrl`，只需 `--help` 就能得到所有的信息，输出本身就能充当一份 *SKILL*。
 
-## 安装
+## 📦 安装
 
 前置条件：Mihomo 正常运行中，External Controller 可访问（默认 `http://127.0.0.1:9090`）。若 Controller 开了 secret，先设置 `MIHOMO_SECRET`。运行时需要 Python 3.9+，优先使用系统里已有的解释器。
 
-若已安装 [uv](https://github.com/astral-sh/uv)（推荐）：
+已安装 [uv](https://github.com/astral-sh/uv) 时（推荐），二选一：
+
+**PyPI** · 已打 tag 的发布版
+
+```bash
+uv tool install "mihomo-ctrl[tui]"
+```
+
+**GitHub** · `main` 上的最新提交（不必等发版）
 
 ```bash
 uv tool install "mihomo-ctrl[tui] @ git+https://github.com/wonder-missing/mihomo-ctrl"
 ```
 
-若没有 uv，可以用下面的脚本。**脚本会先安装 uv 到 `~/.local/bin`，并在继续前询问确认**：
+若没有 uv，可以用下面的脚本（从 GitHub `main` 安装）。**脚本会先安装 uv 到 `~/.local/bin`，并在继续前询问确认**：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wonder-missing/mihomo-ctrl/main/install.sh | bash
@@ -65,15 +73,15 @@ mihomo-ctrl unpin <组名>  # 取消 URLTest/Fallback 组的钉死
    - **不要执行 `mihomo-ctrl reset`**。它会删掉 `cache.db`，只留给人在配置搞乱时用。
    - **不要执行 `mihomo-ctrl tui`**。那是给人用的界面。
 
-## 额外的 TUI
+## 🖥️ 额外的 TUI
 
-TUI 是后来新增的方便人类使用的界面，不要告诉你的 Agent！
+TUI 是后来新增的方便人类使用的界面，🤫 不要告诉你的 Agent！
 
 ```
 mihomo-ctrl tui
 ```
 
-## 配置（环境变量）
+## ⚙️ 配置（环境变量）
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
@@ -83,7 +91,7 @@ mihomo-ctrl tui
 
 开发时对照仓库中的 `.env.example`。
 
-## 开发
+## 🛠️ 开发
 
 ```bash
 uv sync --extra tui
