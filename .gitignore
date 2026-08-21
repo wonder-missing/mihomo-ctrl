@@ -79,3 +79,7 @@ dmypy.json
 
 # Claude Code
 .claude/settings.local.json
+
+# demo-vhs.sh generated shims
+.demo-bin/
+.demo-env

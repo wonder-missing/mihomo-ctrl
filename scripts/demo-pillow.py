@@ -1,9 +1,11 @@
-"""Synthesize a looping terminal CLI demo GIF. Does not capture a live session."""
+"""Pillow 合成版 CLI 演示 GIF。不捕获真实终端，也不连接 Mihomo。"""
 
 from __future__ import annotations
 
 import argparse
 import re
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -422,6 +424,9 @@ def render_frame(view: TerminalView) -> Image.Image:
 def _extend(
     frames: list[Image.Image], durations: list[int], img: Image.Image, ms: int
 ) -> None:
+    if frames and frames[-1].tobytes() == img.tobytes():
+        durations[-1] += ms
+        return
     frames.append(img)
     durations.append(ms)
 
@@ -472,21 +477,56 @@ def build_frames(title: str, scene: list[Step]) -> tuple[list[Image.Image], list
     return frames, durations
 
 
+TRANSPARENT = 255
+
+
+def _delta_indexed(previous: Image.Image, current: Image.Image) -> Image.Image:
+    prev = previous.tobytes()
+    curr = bytearray(current.tobytes())
+    for index, (old, new) in enumerate(zip(prev, curr)):
+        if old == new:
+            curr[index] = TRANSPARENT
+    delta = Image.frombytes("P", current.size, bytes(curr))
+    palette = current.getpalette()
+    if palette is not None:
+        delta.putpalette(palette)
+    return delta
+
+
+def _gifsicle_optimize(dest: Path) -> None:
+    """Optional extra pass. gifsicle -O3 does not change pixels."""
+    binary = shutil.which("gifsicle")
+    if binary is None:
+        return
+    tmp = dest.with_name(f"{dest.stem}.opt.gif")
+    subprocess.run(
+        [binary, "-O3", "--no-comments", "--no-names", "-o", str(tmp), str(dest)],
+        check=True,
+    )
+    tmp.replace(dest)
+
+
 def save_gif(frames: list[Image.Image], durations: list[int], dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
-    palette = frames[-1].quantize(colors=48, method=Image.Quantize.MEDIANCUT)
+    # 47 colors + index 255 reserved for inter-frame transparency.
+    palette = frames[-1].quantize(colors=47, method=Image.Quantize.MEDIANCUT)
     indexed = [
         frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames
     ]
-    indexed[0].save(
+    encoded = [indexed[0]]
+    for previous, current in zip(indexed, indexed[1:]):
+        encoded.append(_delta_indexed(previous, current))
+    encoded[0].save(
         dest,
         save_all=True,
-        append_images=indexed[1:],
+        append_images=encoded[1:],
         duration=durations,
         loop=0,
         optimize=True,
-        disposal=2,
+        disposal=1,
+        transparency=TRANSPARENT,
     )
+    _gifsicle_optimize(dest)
 
 
 def main() -> None:
