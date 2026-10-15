@@ -51,17 +51,19 @@ def _group_prompt(group: ProxyGroup, type_width: int, name_width: int) -> Conten
     )
 
 
+_PINNED_MARK = "\U0001f4cc︎"  # 📌 + VS15：要求按普通文本渲染，别上彩色 emoji
+
+
 def _nodes_title(group: ProxyGroup) -> str:
-    """窄屏也要读得全，所以不重复左栏已有的类型。"""
-    state = "钉死" if group.fixed else "当前"
-    return f"{group.name} · {state} {group.now}"
+    """紧凑：组名放方括号，选中/钉死只用尾标。"""
+    mark = _PINNED_MARK if group.fixed else "✓"
+    return f"[{group.name}] {group.now} {mark}"
 
 
 def _node_prompt(name: str, delay: int | None, *, current: bool) -> Content:
+    """当前节点用加粗区分，不占列画圆点（标题里也标了 ✓）。"""
     delay_str = f"{delay}ms" if delay is not None else ""
-    marker = "● " if current else "  "
-    label = f"{marker}{name}"
-    body = Content.styled(label, "bold") if current else Content.styled(label, "dim")
+    body = Content.styled(name, "bold") if current else Content.styled(name, "dim")
     if not delay_str:
         return body
     return body + Content.styled(f"  {delay_str}", "dim")
@@ -81,7 +83,7 @@ class MihomoApp(App[None]):
     """给人用的界面。不要告诉 Agent。"""
 
     TITLE = _APP_TITLE
-    SUB_TITLE = "正在读取 Mihomo…"
+    SUB_TITLE = "reading Mihomo…"
     CSS = """
     Screen {
         layout: vertical;
@@ -113,10 +115,10 @@ class MihomoApp(App[None]):
         padding: 0;
     }
     #groups-pane {
-        width: 4fr;
+        width: 61.8fr;
     }
     #nodes-pane {
-        width: 6fr;
+        width: 38.2fr;
         border-left: solid $accent 40%;
     }
     /* 选项用 ListView（子节点）而不是 OptionList：后者自己画行、内容不溢出，
@@ -156,12 +158,12 @@ class MihomoApp(App[None]):
     }
     """
     BINDINGS: ClassVar = [
-        Binding("enter", "switch_node", "选择", show=True),
-        Binding("q", "quit", "退出"),
-        Binding("r", "refresh", "刷新"),
-        Binding("u", "unpin", "消钉"),
-        Binding("left", "scroll_left", "横移", show=False),
-        Binding("right", "scroll_right", "横移", show=False),
+        Binding("enter", "switch_node", "select", show=True),
+        Binding("q", "quit", "quit"),
+        Binding("r", "refresh", "refresh"),
+        Binding("u", "unpin", "unpin"),
+        Binding("left", "scroll_left", "pan", show=False),
+        Binding("right", "scroll_right", "pan", show=False),
     ]
 
     def __init__(self) -> None:
@@ -179,10 +181,10 @@ class MihomoApp(App[None]):
             yield Static(_keys_hint(self.BINDINGS), id="keys")
         with Horizontal(id="body"):
             with Vertical(id="groups-pane"):
-                yield Static("代理组  ↑↓ · ←→ 横移", classes="pane-title")
+                yield Static("Proxy Groups", classes="pane-title")
                 yield ListView(id="groups")
             with Vertical(id="nodes-pane"):
-                yield Static("选项  Tab · Enter 选择", classes="pane-title")
+                yield Static("Options", classes="pane-title")
                 yield ListView(id="nodes")
 
     def on_mount(self) -> None:
@@ -193,7 +195,7 @@ class MihomoApp(App[None]):
         if self._busy:
             return
         self._busy = True
-        self._set_status("正在刷新…")
+        self._set_status("refreshing…")
         self.run_worker(self._reload, exclusive=True, thread=True)
 
     def action_switch_node(self) -> None:
@@ -204,13 +206,13 @@ class MihomoApp(App[None]):
         group = self._current_group()
         node = self._current_node()
         if group is None or node is None:
-            self._set_status("先选一个节点")
+            self._set_status("pick a node first")
             return
         if node == group.now:
-            self._set_status(f"{group.name} 已经是 {node}")
+            self._set_status(f"{group.name} is already {node}")
             return
         self._busy = True
-        self._set_status(f"切换 {group.name} → {node} …")
+        self._set_status(f"switching {group.name} → {node}…")
         self.run_worker(
             lambda: self._switch(group.name, node),
             exclusive=True,
@@ -235,13 +237,13 @@ class MihomoApp(App[None]):
             return
         group = self._current_group()
         if group is None:
-            self._set_status("先选一个代理组")
+            self._set_status("pick a proxy group first")
             return
         if not group.fixed:
-            self._set_status(f"{group.name} 没有钉死")
+            self._set_status(f"{group.name} is not pinned")
             return
         self._busy = True
-        self._set_status(f"取消 {group.name} 的钉死…")
+        self._set_status(f"unpinning {group.name}…")
         self.run_worker(
             lambda: self._unpin(group.name),
             exclusive=True,
@@ -281,7 +283,7 @@ class MihomoApp(App[None]):
             self._load_ok,
             groups,
             delays,
-            f'已切换 "{group}" → "{node}"',
+            f'switched "{group}" → "{node}"'
         )
 
     def _unpin(self, group: str) -> None:
@@ -297,7 +299,7 @@ class MihomoApp(App[None]):
             self._load_ok,
             groups,
             delays,
-            f'已取消 "{group}" 的钉死',
+            f'unpinned "{group}"',
         )
 
     def _load_ok(
@@ -325,18 +327,18 @@ class MihomoApp(App[None]):
             self._group_index = 0
         self._render_groups()
         self._render_nodes()
-        self._set_status(status or f"{len(groups)} 个代理组")
+        self._set_status(status or f"{len(groups)} groups")
 
     def _load_failed(self, message: str) -> None:
         self._busy = False
-        self._set_status(f"失败：{message}")
+        self._set_status(f"failed: {message}")
 
     def _render_groups(self) -> None:
         view = self.query_one("#groups", ListView)
         scroll_x = view.scroll_x
         view.clear()
         if not self._groups:
-            view.append(ListItem(Label(Content("(没有代理组)"))))
+            view.append(ListItem(Label(Content("(no proxy groups)"))))
             return
         type_width = _column_width(
             [f"[{group.proxy_type}]" for group in self._groups],
@@ -359,9 +361,9 @@ class MihomoApp(App[None]):
         group = self._current_group()
         title = self.query_one("#nodes-pane .pane-title", Static)
         if group is None:
-            title.update("选项")
+            title.update("Options")
             self._visible_nodes = []
-            view.append(ListItem(Label(Content("(先选代理组)"))))
+            view.append(ListItem(Label(Content("(pick a proxy group)"))))
             return
         title.update(_nodes_title(group))
         nodes = nodes_by_delay(group.nodes, self._delays)

@@ -71,7 +71,7 @@ def test_group_prompt_marks_pinned() -> None:
     assert plain.endswith("HK-01 *")
 
 
-def test_nodes_title_uses_pinned_wording() -> None:
+def test_nodes_title_marks_current_and_pinned() -> None:
     free = _group("美国", "Selector", "US-01")
     pinned = ProxyGroup(
         name="自动选择",
@@ -80,28 +80,28 @@ def test_nodes_title_uses_pinned_wording() -> None:
         nodes=(),
         fixed="HK-01",
     )
-    assert "当前 US-01" in _nodes_title(free)
-    assert "钉死 HK-01" in _nodes_title(pinned)
+    assert _nodes_title(free) == "[美国] US-01 ✓"
+    assert _nodes_title(pinned) == "[自动选择] HK-01 \U0001f4cc︎"
 
 
 def test_keys_hint_follows_bindings() -> None:
     hint = _keys_hint(MihomoApp.BINDINGS)
-    assert hint.startswith("⏎ 选择")
-    assert "q 退出" in hint
-    assert "r 刷新" in hint
-    assert "u 消钉" in hint
+    assert hint.startswith("⏎ select")
+    assert "q quit" in hint
+    assert "r refresh" in hint
+    assert "u unpin" in hint
 
 
-def test_nodes_title_drops_type_for_narrow_screens() -> None:
+def test_nodes_title_keeps_group_in_brackets() -> None:
     title = _nodes_title(_group("自动选择", "URLTest", "HK-01"))
-    assert title == "自动选择 · 当前 HK-01"
+    assert title.startswith("[自动选择] HK-01")
 
 
-def test_node_prompt_marks_only_current() -> None:
+def test_node_prompt_has_no_marker_column() -> None:
     current = _node_prompt("HK-01", 42, current=True)
     other = _node_prompt("US-01", 88, current=False)
-    assert current.plain.startswith("● ")
-    assert other.plain.startswith("  ")
+    assert current.plain.startswith("HK-01")
+    assert other.plain.startswith("US-01")
     assert "42ms" in current.plain
     assert "88ms" in other.plain
 
@@ -139,7 +139,7 @@ def test_enter_on_groups_does_not_claim_already_selected() -> None:
             assert app.focused.id == "groups"
             await pilot.press("enter")
             assert app._busy is False
-            assert "已经是" not in app.sub_title
+            assert "already" not in app.sub_title
 
     asyncio.run(check())
 
@@ -155,7 +155,7 @@ def test_unpin_without_fixed_does_not_run() -> None:
     app.action_unpin()
     assert app._busy is False
     assert workers == []
-    assert statuses == ["自动选择 没有钉死"]
+    assert statuses == ["自动选择 is not pinned"]
 
 
 def test_unpin_with_fixed_starts_worker() -> None:
@@ -205,12 +205,12 @@ def test_layout_clips_long_now_and_keeps_title() -> None:
             left = app.query_one("#groups-pane")
             right = app.query_one("#nodes-pane")
             ratio = left.size.width / right.size.width
-            assert 0.55 < ratio < 0.8
+            assert 1.5 < ratio < 1.7  # 黄金比（左 61.8 / 右 38.2，含边框误差）
             title = app.query_one("#nodes-pane .pane-title", Static)
             assert isinstance(title.content, str)
-            assert f"当前 {now}" in title.content
+            assert title.content == f"[默认] {now} ✓"
             keys = app.query_one("#keys", Static)
-            assert "选择" in str(keys.content)
+            assert "select" in str(keys.content)
             assert list(app.query(Footer)) == []
             bar_title = app.query_one("#title", Static)
             assert bar_title.region.right <= keys.region.x
@@ -230,7 +230,7 @@ def test_long_status_does_not_cover_keys() -> None:
             bar_title = app.query_one("#title", Static)
             keys = app.query_one("#keys", Static)
             assert bar_title.region.right <= keys.region.x
-            assert "选择" in str(keys.content)
+            assert "select" in str(keys.content)
 
     asyncio.run(check())
 
