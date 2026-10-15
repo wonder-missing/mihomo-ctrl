@@ -131,6 +131,12 @@ class MihomoApp(App[None]):
         /* 不设 overflow-x 的话 allow_horizontal_scroll 为 False，
            横向滚轮（SGR 66/67，网页终端左右滑就发这个）会被直接忽略。 */
         overflow-x: auto;
+        /* 横条画的是块状字符（▉▊▋…），轨道再一衬就很抢眼。轨道透明、条压淡，
+           两个滚动条一起变低调（textual 不分开给样式）。 */
+        scrollbar-background: transparent;
+        scrollbar-color: $foreground 12%;
+        scrollbar-color-hover: $foreground 30%;
+        scrollbar-color-active: $foreground 45%;
     }
     ListView:focus {
         border: none;
