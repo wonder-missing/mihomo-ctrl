@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from textual.widgets import Footer, ListView, Static
 
@@ -90,20 +91,21 @@ def test_titles_keep_brackets_on_screen() -> None:
     group = ProxyGroup(
         "Gemini", "Selector", "[subs][m]香港-优化", ("[subs][m]香港-优化",)
     )
-
-    class Preview(MihomoApp):
-        def on_mount(self) -> None:
-            self.query_one("#groups").focus()
-            self._load_ok([group], {}, "ok")
+    client = MagicMock()
+    client.__enter__.return_value = client
+    client.__exit__.return_value = None
+    client.list_groups.return_value = [group]
+    client.delay_map.return_value = {}
 
     async def check() -> None:
-        app = Preview()
-        async with app.run_test(size=(63, 20)) as pilot:
-            await pilot.pause()
-            title = app.query_one("#nodes-pane .pane-title", Static)
-            line = title.render_line(0).text
-            assert "[Gemini]" in line
-            assert "[subs][m]" in line
+        with patch("mihomo_ctrl.tui.MihomoClient", return_value=client):
+            app = MihomoApp()
+            async with app.run_test(size=(63, 20)) as pilot:
+                await pilot.pause()
+                title = app.query_one("#nodes-pane .pane-title", Static)
+                line = title.render_line(0).text
+                assert "[Gemini]" in line
+                assert "[subs][m]" in line
 
     asyncio.run(check())
 
