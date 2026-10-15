@@ -1,7 +1,7 @@
 import asyncio
 from types import SimpleNamespace
 
-from textual.widgets import Footer, Static
+from textual.widgets import Footer, ListView, Static
 
 from mihomo_ctrl.client import ProxyGroup
 from mihomo_ctrl.tui import (
@@ -110,8 +110,8 @@ def test_nodes_selected_triggers_switch() -> None:
     app = MihomoApp()
     called: list[bool] = []
     app.action_switch_node = lambda: called.append(True)
-    event = SimpleNamespace(option_list=SimpleNamespace(id="nodes"))
-    app.on_option_list_option_selected(event)  # type: ignore[arg-type]
+    event = SimpleNamespace(list_view=SimpleNamespace(id="nodes"))
+    app.on_list_view_selected(event)  # type: ignore[arg-type]
     assert called == [True]
 
 
@@ -119,8 +119,8 @@ def test_groups_selected_does_not_switch() -> None:
     app = MihomoApp()
     called: list[bool] = []
     app.action_switch_node = lambda: called.append(True)
-    event = SimpleNamespace(option_list=SimpleNamespace(id="groups"))
-    app.on_option_list_option_selected(event)  # type: ignore[arg-type]
+    event = SimpleNamespace(list_view=SimpleNamespace(id="groups"))
+    app.on_list_view_selected(event)  # type: ignore[arg-type]
     assert called == []
 
 
@@ -206,8 +206,6 @@ def test_layout_clips_long_now_and_keeps_title() -> None:
             right = app.query_one("#nodes-pane")
             ratio = left.size.width / right.size.width
             assert 0.55 < ratio < 0.8
-            glist = app.query_one("#groups")
-            assert glist._heights[0] == 1
             title = app.query_one("#nodes-pane .pane-title", Static)
             assert isinstance(title.content, str)
             assert f"当前 {now}" in title.content
@@ -216,7 +214,6 @@ def test_layout_clips_long_now_and_keeps_title() -> None:
             assert list(app.query(Footer)) == []
             bar_title = app.query_one("#title", Static)
             assert bar_title.region.right <= keys.region.x
-            assert not app.screen.has_class("narrow")
 
     asyncio.run(check())
 
@@ -238,21 +235,31 @@ def test_long_status_does_not_cover_keys() -> None:
     asyncio.run(check())
 
 
-def test_narrow_terminal_stacks_panes() -> None:
-    groups = [ProxyGroup("默认", "Selector", "自动选择", ("自动选择",))]
+def test_narrow_terminal_pans_nodes_horizontally() -> None:
+    long_name = "超长节点名称" + "X" * 40
+    group = ProxyGroup("自动选择", "URLTest", long_name, (long_name, "HK-01"))
 
     class Preview(MihomoApp):
         def on_mount(self) -> None:
             self.query_one("#groups").focus()
-            self._load_ok(groups, {}, "ok")
+            self._load_ok([group], {}, "ok")
 
     async def check() -> None:
         app = Preview()
-        async with app.run_test(size=(50, 24)):
-            assert app.screen.has_class("narrow")
+        async with app.run_test(size=(40, 20)) as pilot:
+            await pilot.pause()
             left = app.query_one("#groups-pane")
             right = app.query_one("#nodes-pane")
-            assert left.size.width == right.size.width
-            assert app.query_one("#keys", Static).display is False
+            assert left.size.width > 0 and right.size.width > 0
+            view = app.query_one("#nodes", ListView)
+            assert view.max_scroll_x > 0
+            view.focus()
+            await pilot.pause()
+            await pilot.press("right")
+            await pilot.pause()
+            assert view.scroll_x > 0
+            await pilot.press("left")
+            await pilot.pause()
+            assert view.scroll_x == 0
 
     asyncio.run(check())

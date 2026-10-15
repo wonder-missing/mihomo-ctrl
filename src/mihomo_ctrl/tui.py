@@ -3,19 +3,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Horizontal, Vertical
 from textual.content import Content
-from textual.widgets import OptionList, Static
-from textual.widgets.option_list import Option
+from textual.widgets import Label, ListItem, ListView, Static
 
 from mihomo_ctrl.client import MihomoClient, ProxyGroup, nodes_by_delay
 
 _MIN_GROUP_NAME_WIDTH = 8
-_NARROW_WIDTH = 72
 _APP_TITLE = "mihomo-ctrl"
+_PAN_STEP = 8
 
 
 def run_tui() -> None:
@@ -72,7 +70,7 @@ def _node_prompt(name: str, delay: int | None, *, current: bool) -> Content:
 def _keys_hint(bindings: Sequence[BindingType]) -> str:
     parts: list[str] = []
     for binding in bindings:
-        if not isinstance(binding, Binding):
+        if not isinstance(binding, Binding) or not binding.show:
             continue
         key = "⏎" if binding.key == "enter" else binding.key
         parts.append(f"{key} {binding.description}")
@@ -121,20 +119,31 @@ class MihomoApp(App[None]):
         width: 6fr;
         border-left: solid $accent 40%;
     }
-    OptionList {
+    /* 选项用 ListView（子节点）而不是 OptionList：后者自己画行、内容不溢出，
+       窄屏时既看不到尾部也滚不动。ListView 的子项设 width: auto，列表就能横向滚。 */
+    ListView {
         padding: 0;
         border: none;
         scrollbar-size-vertical: 1;
-        text-wrap: nowrap;
-        text-overflow: clip;
+        scrollbar-size-horizontal: 1;
     }
-    OptionList:focus {
+    ListView:focus {
         border: none;
     }
-    #nodes-pane OptionList > .option-list--option-highlighted {
+    ListView > ListItem {
+        width: auto;
+        height: 1;
+        padding: 0 1;
+        background: transparent;
+    }
+    ListView > ListItem > Label {
+        width: auto;
+        text-wrap: nowrap;
+    }
+    ListView > ListItem.-highlight {
         background: $accent 35%;
     }
-    #nodes-pane OptionList:focus > .option-list--option-highlighted {
+    ListView:focus > ListItem.-highlight {
         color: $block-cursor-foreground;
         background: $block-cursor-background;
         text-style: bold;
@@ -145,27 +154,14 @@ class MihomoApp(App[None]):
         color: $text-muted;
         text-overflow: ellipsis;
     }
-    Screen.narrow #keys {
-        display: none;
-    }
-    Screen.narrow #body {
-        layout: vertical;
-    }
-    Screen.narrow #groups-pane {
-        width: 1fr;
-        height: 40%;
-    }
-    Screen.narrow #nodes-pane {
-        width: 1fr;
-        height: 60%;
-        border-left: none;
-    }
     """
     BINDINGS: ClassVar = [
         Binding("enter", "switch_node", "选择", show=True),
         Binding("q", "quit", "退出"),
         Binding("r", "refresh", "刷新"),
         Binding("u", "unpin", "消钉"),
+        Binding("left", "scroll_left", "横移", show=False),
+        Binding("right", "scroll_right", "横移", show=False),
     ]
 
     def __init__(self) -> None:
@@ -183,23 +179,15 @@ class MihomoApp(App[None]):
             yield Static(_keys_hint(self.BINDINGS), id="keys")
         with Horizontal(id="body"):
             with Vertical(id="groups-pane"):
-                yield Static("代理组  ↑↓", classes="pane-title")
-                yield OptionList(id="groups")
+                yield Static("代理组  ↑↓ · ←→ 横移", classes="pane-title")
+                yield ListView(id="groups")
             with Vertical(id="nodes-pane"):
                 yield Static("选项  Tab · Enter 选择", classes="pane-title")
-                yield OptionList(id="nodes")
+                yield ListView(id="nodes")
 
     def on_mount(self) -> None:
-        self._apply_width_mode(self.size.width)
-        self.query_one("#groups", OptionList).focus()
+        self.query_one("#groups", ListView).focus()
         self.action_refresh()
-
-    def on_resize(self, event: events.Resize) -> None:
-        self._apply_width_mode(event.size.width)
-
-    def _apply_width_mode(self, width: int) -> None:
-        """窄终端（手机 SSH）改上下堆叠——双栏在窄屏里每栏只剩十几列。"""
-        self.screen.set_class(width < _NARROW_WIDTH, "narrow")
 
     def action_refresh(self) -> None:
         if self._busy:
@@ -229,6 +217,19 @@ class MihomoApp(App[None]):
             thread=True,
         )
 
+    def action_scroll_left(self) -> None:
+        self._pan(-_PAN_STEP)
+
+    def action_scroll_right(self) -> None:
+        self._pan(_PAN_STEP)
+
+    def _pan(self, step: int) -> None:
+        """←→ 横移当前窗格：窄屏看不到的行尾/标题靠它和拖滚动条看。"""
+        focused = self.focused
+        if not isinstance(focused, ListView):
+            return
+        focused.scroll_x = min(max(focused.scroll_x + step, 0), focused.max_scroll_x)
+
     def action_unpin(self) -> None:
         if self._busy:
             return
@@ -247,15 +248,14 @@ class MihomoApp(App[None]):
             thread=True,
         )
 
-    def on_option_list_option_highlighted(
-        self, event: OptionList.OptionHighlighted
-    ) -> None:
-        if event.option_list.id == "groups":
-            self._group_index = event.option_index
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        view = event.list_view
+        if view.id == "groups" and view.index is not None:
+            self._group_index = view.index
             self._render_nodes()
 
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        if event.option_list.id == "nodes":
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        if event.list_view.id == "nodes":
             self.action_switch_node()
 
     def _reload(self) -> None:
@@ -332,10 +332,11 @@ class MihomoApp(App[None]):
         self._set_status(f"失败：{message}")
 
     def _render_groups(self) -> None:
-        widget = self.query_one("#groups", OptionList)
-        widget.clear_options()
+        view = self.query_one("#groups", ListView)
+        scroll_x = view.scroll_x
+        view.clear()
         if not self._groups:
-            widget.add_option(Option("(没有代理组)"))
+            view.append(ListItem(Label(Content("(没有代理组)"))))
             return
         type_width = _column_width(
             [f"[{group.proxy_type}]" for group in self._groups],
@@ -344,39 +345,40 @@ class MihomoApp(App[None]):
             [group.name for group in self._groups],
             _MIN_GROUP_NAME_WIDTH,
         )
-        for group in self._groups:
-            widget.add_option(
-                Option(
-                    _group_prompt(group, type_width, name_width),
-                )
-            )
-        widget.highlighted = min(self._group_index, len(self._groups) - 1)
+        view.extend(
+            ListItem(Label(_group_prompt(group, type_width, name_width)))
+            for group in self._groups
+        )
+        view.index = min(self._group_index, len(self._groups) - 1)
+        view.scroll_to(x=scroll_x, animate=False)
 
     def _render_nodes(self) -> None:
-        widget = self.query_one("#nodes", OptionList)
-        widget.clear_options()
+        view = self.query_one("#nodes", ListView)
+        scroll_x = view.scroll_x
+        view.clear()
         group = self._current_group()
         title = self.query_one("#nodes-pane .pane-title", Static)
         if group is None:
             title.update("选项")
             self._visible_nodes = []
-            widget.add_option(Option("(先选代理组)"))
+            view.append(ListItem(Label(Content("(先选代理组)"))))
             return
         title.update(_nodes_title(group))
         nodes = nodes_by_delay(group.nodes, self._delays)
         self._visible_nodes = nodes
         current_index = 0
+        items: list[ListItem] = []
         for index, node in enumerate(nodes):
             delay = self._delays.get(node)
-            widget.add_option(
-                Option(
-                    _node_prompt(node, delay, current=node == group.now),
-                )
+            items.append(
+                ListItem(Label(_node_prompt(node, delay, current=node == group.now)))
             )
             if node == group.now:
                 current_index = index
+        view.extend(items)
         if nodes:
-            widget.highlighted = current_index
+            view.index = current_index
+        view.scroll_to(x=scroll_x, animate=False)
 
     def _current_group(self) -> ProxyGroup | None:
         if 0 <= self._group_index < len(self._groups):
@@ -384,11 +386,8 @@ class MihomoApp(App[None]):
         return None
 
     def _current_node(self) -> str | None:
-        widget = self.query_one("#nodes", OptionList)
-        index = widget.highlighted
-        if index is None:
-            return None
-        if 0 <= index < len(self._visible_nodes):
+        index = self.query_one("#nodes", ListView).index
+        if index is not None and 0 <= index < len(self._visible_nodes):
             return self._visible_nodes[index]
         return None
 
