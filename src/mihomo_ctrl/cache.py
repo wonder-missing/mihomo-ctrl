@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 CACHE_NAME = "cache.db"
 _CORE_NAMES = frozenset({"mihomo", "clash", "clash-meta"})
+_SUBPROCESS_TIMEOUT = 10.0
 
 DEFAULT_DIRS = (
     "~/.config/mihomo",
@@ -64,8 +65,13 @@ def reset_cache(path: Path) -> bool:
 def _live_process_candidates() -> list[Path]:
     candidates: list[Path] = []
     try:
-        output = subprocess.check_output(["ps", "-ef"], text=True, errors="ignore")
-    except OSError as exc:
+        output = subprocess.check_output(
+            ["ps", "-ef"],
+            text=True,
+            errors="ignore",
+            timeout=_SUBPROCESS_TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
         logger.debug("ps failed: %s", exc)
         return candidates
 
@@ -99,8 +105,9 @@ def _cwd_cache_path(pid: str) -> Path | None:
             ["lsof", "-a", "-d", "cwd", "-p", pid, "-Fn"],
             text=True,
             errors="ignore",
+            timeout=_SUBPROCESS_TIMEOUT,
         )
-    except (OSError, subprocess.CalledProcessError) as exc:
+    except (OSError, subprocess.SubprocessError) as exc:
         logger.debug("lsof pid=%s failed: %s", pid, exc)
         return None
     return cache_path_from_lsof(output)

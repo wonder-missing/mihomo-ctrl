@@ -12,6 +12,8 @@ from urllib.request import Request
 
 from mihomo_ctrl.client import (
     MihomoClient,
+    ProxyGroup,
+    cross_level_switch_target,
     delay_sort_key,
     is_noise_or_group,
     latest_delay,
@@ -81,6 +83,34 @@ class _FakeResponse:
         return None
 
 
+def _proxies() -> dict[str, object]:
+    return {
+        "默认": {"type": "Selector", "all": ["自动选择", "美国", "直连"]},
+        "自动选择": {"type": "URLTest", "all": ["HK-01"]},
+        "美国": {"type": "Selector", "all": ["US-01"]},
+        "直连": {"type": "Direct"},
+        "US-01": {"type": "Shadowsocks"},
+    }
+
+
+def test_cross_level_blocks_leaf_inside_aggregate_group() -> None:
+    group = ProxyGroup("默认", "Selector", "自动选择", ("自动选择", "美国", "直连"))
+    assert cross_level_switch_target(group, "US-01", _proxies()) is True
+
+
+def test_cross_level_allows_group_direct_and_unknown_target() -> None:
+    group = ProxyGroup("默认", "Selector", "自动选择", ("自动选择", "美国", "直连"))
+    proxies = _proxies()
+    assert cross_level_switch_target(group, "美国", proxies) is False
+    assert cross_level_switch_target(group, "直连", proxies) is False
+    assert cross_level_switch_target(group, "不存在", proxies) is False
+
+
+def test_cross_level_allows_leaf_inside_region_group() -> None:
+    group = ProxyGroup("美国", "Selector", "US-01", ("US-01", "HK-01"))
+    assert cross_level_switch_target(group, "US-01", _proxies()) is False
+
+
 def _client() -> MihomoClient:
     return MihomoClient(Settings(api_url="http://127.0.0.1:9090", secret="s3cret"))
 
@@ -89,6 +119,32 @@ def _client() -> MihomoClient:
 def _patch_urlopen(handler: Callable[..., object]) -> Iterator[None]:
     with patch("mihomo_ctrl.client.urlopen", side_effect=handler):
         yield
+
+
+def test_proxy_index_merges_provider_nodes() -> None:
+    def handler(request: Request, timeout: float | None = None) -> _FakeResponse:
+        if request.full_url.endswith("/providers/proxies"):
+            return _FakeResponse(
+                200,
+                {
+                    "providers": {
+                        "sub": {
+                            "proxies": [
+                                {"name": "HK-01", "type": "Shadowsocks"},
+                                {"name": "默认", "type": "Shadowsocks"},
+                            ]
+                        }
+                    }
+                },
+            )
+        return _FakeResponse(
+            200, {"proxies": {"默认": {"all": ["HK-01"], "type": "Selector"}}}
+        )
+
+    with _patch_urlopen(handler), _client() as client:
+        index = client.proxy_index()
+    assert index["HK-01"]["type"] == "Shadowsocks"
+    assert index["默认"]["type"] == "Selector"
 
 
 def test_request_sends_bearer_and_parses_json() -> None:

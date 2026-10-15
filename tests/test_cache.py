@@ -1,8 +1,11 @@
+import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from mihomo_ctrl.cache import (
+    _live_process_candidates,
     cache_path_from_lsof,
     cache_paths_from_ps,
     reset_cache,
@@ -76,3 +79,10 @@ def test_reset_removes_existing_cache(tmp_path: Path) -> None:
 def test_reset_missing_cache_is_clean(tmp_path: Path) -> None:
     cache = tmp_path / "cache.db"
     assert reset_cache(cache) is False
+
+
+def test_live_candidates_survive_ps_timeout() -> None:
+    with patch.object(
+        subprocess, "check_output", side_effect=subprocess.TimeoutExpired("ps", 10)
+    ):
+        assert _live_process_candidates() == []

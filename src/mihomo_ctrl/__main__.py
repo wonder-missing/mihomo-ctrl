@@ -8,7 +8,12 @@ import sys
 from pathlib import Path
 
 from mihomo_ctrl.cache import detect_cache_path, reset_cache
-from mihomo_ctrl.client import MihomoClient, ProxyGroup, nodes_by_delay
+from mihomo_ctrl.client import (
+    MihomoClient,
+    ProxyGroup,
+    cross_level_switch_target,
+    nodes_by_delay,
+)
 from mihomo_ctrl.config import settings
 from mihomo_ctrl.errors import MihomoAPIError, MihomoError
 
@@ -66,7 +71,21 @@ def cmd_switch(args: argparse.Namespace) -> None:
         args.group_or_node, args.node, settings.default_group
     )
     with MihomoClient() as client:
+        index = client.proxy_index()
+        current = client.get_group(group, index)
+        if not args.force and cross_level_switch_target(current, node, index):
+            raise MihomoError(
+                f'Refusing cross-level switch: "{group}" 是聚合组，'
+                f'直接切到叶子 "{node}" 会跳过地区层（还会被 store-selected 记住）。'
+                f"先切地区组、再把 {group} 切到该地区；确实要这样切用 --force。"
+            )
         client.switch(group, node)
+        landed = client.get_group(group).now
+    if landed != node:
+        raise MihomoError(
+            f'Switch did not stick: "{group}" 现在指向 "{landed}"（不是 "{node}"）。'
+            "多半是目标不健康，Mihomo 当场丢弃了这次指定。"
+        )
     print(f'Switched proxy group "{group}" to "{node}"')
 
 
@@ -77,6 +96,9 @@ def cmd_unpin(args: argparse.Namespace) -> None:
             print(f'Proxy group "{group.name}" is not pinned')
             return
         client.unpin(group.name)
+        still = client.get_group(group.name).fixed
+    if still:
+        raise MihomoError(f'Unpin did not stick: "{group.name}" 仍钉在 "{still}"。')
     print(f'Unpinned proxy group "{group.name}"')
 
 
@@ -96,7 +118,8 @@ def cmd_reset(args: argparse.Namespace) -> None:
     target = path.resolve()
     if reset_cache(target):
         print(f"[SUCCESS] Removed cache file: {target}")
-        print("Tip: Restart Mihomo to restore default configuration states.")
+        print("Tip: store-selected 的全部指向（含手选、钉死）随之丢失；")
+        print("     重启 Mihomo 后各回默认状态。")
     else:
         print(f"[INFO] Cache file not found: {target} (already clean)")
 
@@ -156,6 +179,11 @@ def build_parser() -> argparse.ArgumentParser:
   mihomo-ctrl switch 默认 美国
   mihomo-ctrl switch 美国 '<节点名>'
   mihomo-ctrl unpin 自动选择
+
+环境变量（装好的 CLI 只读 shell 环境；仓库里 uv run 会额外加载 .env）:
+  MIHOMO_API_URL        External Controller 地址（默认 http://127.0.0.1:9090）
+  MIHOMO_SECRET         Controller 的 secret（默认空）
+  MIHOMO_DEFAULT_GROUP  单参 switch 的默认组（默认 PROXY，按自己的入口组名设置）
 """,
     )
     parser.add_argument("-V", "--version", action=VersionAction)
@@ -191,6 +219,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="代理组名（只传一个参数时视为默认组下的选项）",
     )
     p_switch.add_argument("node", nargs="?", help="要选中的选项（节点或代理组）")
+    p_switch.add_argument(
+        "--force",
+        action="store_true",
+        help="允许聚合组直切叶子节点（默认拒绝跨层级；只给清楚后果的人用）",
+    )
     p_switch.set_defaults(func=cmd_switch)
 
     p_unpin = subparsers.add_parser(

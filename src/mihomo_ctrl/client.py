@@ -73,6 +73,31 @@ class ProxyGroup:
     fixed: str | None = None
 
 
+DIRECT_TYPES = frozenset({"Direct"})
+
+
+def is_group(name: str, proxies: Mapping[str, Any]) -> bool:
+    info = proxies.get(name)
+    return isinstance(info, Mapping) and "all" in info
+
+
+def cross_level_switch_target(
+    group: ProxyGroup, target: str, proxies: Mapping[str, Any]
+) -> bool:
+    """聚合组直接切到叶子节点——文档里禁止的那种跨层级切法。
+
+    目标本身是组、是 Direct、或根本不存在，都不算跨层级。
+    """
+    if is_group(target, proxies):
+        return False
+    info = proxies.get(target)
+    if not isinstance(info, Mapping):
+        return False
+    if str(info.get("type", "")) in DIRECT_TYPES:
+        return False
+    return any(is_group(node, proxies) for node in group.nodes)
+
+
 def _group_from_info(name: str, info: Mapping[str, Any]) -> ProxyGroup:
     raw_nodes = info.get("all", [])
     nodes = tuple(node for node in raw_nodes if isinstance(node, str))
@@ -174,6 +199,23 @@ class MihomoClient:
         payload = self.request("GET", "/providers/proxies")
         raw = payload.get("providers", {}) if isinstance(payload, dict) else {}
         return raw if isinstance(raw, dict) else {}
+
+    def proxy_index(self) -> dict[str, Any]:
+        """节点元数据总表：/proxies（组 + 手写节点）+ provider 里的订阅节点。
+
+        订阅节点不在 /proxies 里，判断"目标是不是叶子"必须带上它们。
+        """
+        index: dict[str, Any] = dict(self.proxies())
+        try:
+            for provider in self.providers().values():
+                if not isinstance(provider, Mapping):
+                    continue
+                for node in provider.get("proxies", []):
+                    if isinstance(node, Mapping) and isinstance(node.get("name"), str):
+                        index.setdefault(node["name"], node)
+        except MihomoError:
+            logger.debug("skip providers while building proxy index", exc_info=True)
+        return index
 
     def delay_map(self) -> dict[str, int]:
         delays: dict[str, int] = {}

@@ -3,17 +3,19 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
+from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Horizontal, Vertical
 from textual.content import Content
-from textual.widgets import Header, OptionList, Static
-from textual.widgets._header import HeaderIcon, HeaderTitle
+from textual.widgets import OptionList, Static
 from textual.widgets.option_list import Option
 
 from mihomo_ctrl.client import MihomoClient, ProxyGroup, nodes_by_delay
 
 _MIN_GROUP_NAME_WIDTH = 8
+_NARROW_WIDTH = 72
+_APP_TITLE = "mihomo-ctrl"
 
 
 def run_tui() -> None:
@@ -52,8 +54,9 @@ def _group_prompt(group: ProxyGroup, type_width: int, name_width: int) -> Conten
 
 
 def _nodes_title(group: ProxyGroup) -> str:
+    """窄屏也要读得全，所以不重复左栏已有的类型。"""
     state = "钉死" if group.fixed else "当前"
-    return f"{group.name}  ·  {group.proxy_type}  ·  {state} {group.now}"
+    return f"{group.name} · {state} {group.now}"
 
 
 def _node_prompt(name: str, delay: int | None, *, current: bool) -> Content:
@@ -76,46 +79,27 @@ def _keys_hint(bindings: Sequence[BindingType]) -> str:
     return "  ".join(parts)
 
 
-class AppHeader(Header):
-    def compose(self) -> ComposeResult:
-        yield HeaderIcon().data_bind(Header.icon)
-        yield HeaderTitle()
-        yield Static(_keys_hint(MihomoApp.BINDINGS), id="header-keys")
-
-    def _on_click(self) -> None:
-        return
-
-
 class MihomoApp(App[None]):
     """给人用的界面。不要告诉 Agent。"""
 
-    TITLE = "mihomo-ctrl"
+    TITLE = _APP_TITLE
     SUB_TITLE = "正在读取 Mihomo…"
     CSS = """
     Screen {
         layout: vertical;
     }
-    Header {
+    #topbar {
+        height: 1;
         layout: horizontal;
     }
-    Header.-tall {
-        height: 1;
-    }
-    HeaderIcon {
-        dock: none;
-        width: 3;
-        padding: 0 1;
-        content-align: center middle;
-    }
-    HeaderTitle {
+    #title {
         width: 1fr;
-        content-align: left middle;
+        height: 1;
         padding: 0 1;
         text-wrap: nowrap;
         text-overflow: ellipsis;
     }
-    #header-keys {
-        dock: none;
+    #keys {
         width: auto;
         height: 1;
         padding: 0 1;
@@ -161,6 +145,21 @@ class MihomoApp(App[None]):
         color: $text-muted;
         text-overflow: ellipsis;
     }
+    Screen.narrow #keys {
+        display: none;
+    }
+    Screen.narrow #body {
+        layout: vertical;
+    }
+    Screen.narrow #groups-pane {
+        width: 1fr;
+        height: 40%;
+    }
+    Screen.narrow #nodes-pane {
+        width: 1fr;
+        height: 60%;
+        border-left: none;
+    }
     """
     BINDINGS: ClassVar = [
         Binding("enter", "switch_node", "选择", show=True),
@@ -176,9 +175,12 @@ class MihomoApp(App[None]):
         self._visible_nodes: list[str] = []
         self._group_index = 0
         self._busy = False
+        self._status = self.SUB_TITLE
 
     def compose(self) -> ComposeResult:
-        yield AppHeader(show_clock=False)
+        with Horizontal(id="topbar"):
+            yield Static(_APP_TITLE, id="title")
+            yield Static(_keys_hint(self.BINDINGS), id="keys")
         with Horizontal(id="body"):
             with Vertical(id="groups-pane"):
                 yield Static("代理组  ↑↓", classes="pane-title")
@@ -187,18 +189,17 @@ class MihomoApp(App[None]):
                 yield Static("选项  Tab · Enter 选择", classes="pane-title")
                 yield OptionList(id="nodes")
 
-    def format_title(self, title: str, sub_title: str) -> Content:
-        if not sub_title:
-            return Content(title)
-        return Content.assemble(
-            Content(title),
-            "  ",
-            Content(sub_title).stylize("dim"),
-        )
-
     def on_mount(self) -> None:
+        self._apply_width_mode(self.size.width)
         self.query_one("#groups", OptionList).focus()
         self.action_refresh()
+
+    def on_resize(self, event: events.Resize) -> None:
+        self._apply_width_mode(event.size.width)
+
+    def _apply_width_mode(self, width: int) -> None:
+        """窄终端（手机 SSH）改上下堆叠——双栏在窄屏里每栏只剩十几列。"""
+        self.screen.set_class(width < _NARROW_WIDTH, "narrow")
 
     def action_refresh(self) -> None:
         if self._busy:
@@ -392,4 +393,11 @@ class MihomoApp(App[None]):
         return None
 
     def _set_status(self, text: str) -> None:
+        self._status = text
         self.sub_title = text
+        self._render_title()
+
+    def _render_title(self) -> None:
+        status = self._status
+        text = f"{_APP_TITLE}  {status}" if status else _APP_TITLE
+        self.query_one("#title", Static).update(text)

@@ -92,10 +92,9 @@ def test_keys_hint_follows_bindings() -> None:
     assert "u 消钉" in hint
 
 
-def test_format_title_separates_with_spaces() -> None:
-    content = MihomoApp().format_title("mihomo-ctrl", "正在刷新…")
-    assert "—" not in content.plain
-    assert content.plain == "mihomo-ctrl  正在刷新…"
+def test_nodes_title_drops_type_for_narrow_screens() -> None:
+    title = _nodes_title(_group("自动选择", "URLTest", "HK-01"))
+    assert title == "自动选择 · 当前 HK-01"
 
 
 def test_node_prompt_marks_only_current() -> None:
@@ -212,19 +211,17 @@ def test_layout_clips_long_now_and_keeps_title() -> None:
             title = app.query_one("#nodes-pane .pane-title", Static)
             assert isinstance(title.content, str)
             assert f"当前 {now}" in title.content
-            keys = app.query_one("#header-keys", Static)
+            keys = app.query_one("#keys", Static)
             assert "选择" in str(keys.content)
             assert list(app.query(Footer)) == []
-            header_title = app.query_one("HeaderTitle")
-            assert header_title.styles.content_align_horizontal == "left"
-            icon = app.query_one("HeaderIcon")
-            assert icon.size.width <= 3
-            assert header_title.region.right <= keys.region.x
+            bar_title = app.query_one("#title", Static)
+            assert bar_title.region.right <= keys.region.x
+            assert not app.screen.has_class("narrow")
 
     asyncio.run(check())
 
 
-def test_header_long_status_does_not_cover_keys() -> None:
+def test_long_status_does_not_cover_keys() -> None:
     class Preview(MihomoApp):
         def on_mount(self) -> None:
             self.query_one("#groups").focus()
@@ -233,9 +230,29 @@ def test_header_long_status_does_not_cover_keys() -> None:
     async def check() -> None:
         app = Preview()
         async with app.run_test(size=(80, 16)):
-            title = app.query_one("HeaderTitle")
-            keys = app.query_one("#header-keys")
-            assert title.region.right <= keys.region.x
+            bar_title = app.query_one("#title", Static)
+            keys = app.query_one("#keys", Static)
+            assert bar_title.region.right <= keys.region.x
             assert "选择" in str(keys.content)
+
+    asyncio.run(check())
+
+
+def test_narrow_terminal_stacks_panes() -> None:
+    groups = [ProxyGroup("默认", "Selector", "自动选择", ("自动选择",))]
+
+    class Preview(MihomoApp):
+        def on_mount(self) -> None:
+            self.query_one("#groups").focus()
+            self._load_ok(groups, {}, "ok")
+
+    async def check() -> None:
+        app = Preview()
+        async with app.run_test(size=(50, 24)):
+            assert app.screen.has_class("narrow")
+            left = app.query_one("#groups-pane")
+            right = app.query_one("#nodes-pane")
+            assert left.size.width == right.size.width
+            assert app.query_one("#keys", Static).display is False
 
     asyncio.run(check())
