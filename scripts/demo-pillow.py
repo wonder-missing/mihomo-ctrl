@@ -297,13 +297,13 @@ def _row_text_y(view: TerminalView, row_y: float) -> float:
 def _tui_view(title: str) -> TerminalView:
     probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
     inner = WIDTH - PAD_X * 2
-    split = PAD_X + inner * 2 // 5
+    split = PAD_X + inner * 38 // 100
     left_w = split - PAD_X - _s(10)
     right_w = WIDTH - PAD_X - (split + _s(16))
-    left_header = "mihomo-ctrl  4 个代理组"
-    keys = "⏎ 选择  q 退出  r 刷新  u 消钉"
-    group = "[URLTest] 自动选择  HK-02 *"
-    node_title = "默认  ·  Selector  ·  当前 美国"
+    left_header = "mihomo-ctrl  4 groups"
+    keys = "⏎ select  q quit  r refresh  u unpin"
+    group = "[URLTest] 自动选择  HK-02"
+    node_title = "[默认] 美国 ✓"
     for size in range(FONT_SIZE - 4, 12, -1):
         line_h = max(size + 8, round(LINE_H * size / FONT_SIZE))
         view = TerminalView(title, font_size=size, line_h=line_h)
@@ -327,33 +327,33 @@ def render_tui_frame(chrome: TerminalView) -> Image.Image:
     y = CHROME_H + _s(8)
     header_ty = _row_text_y(view, y)
     x = _draw_mixed(draw, (PAD_X, header_ty), "mihomo-ctrl", view, TEXT)
-    _draw_mixed(draw, (x, header_ty), "  4 个代理组", view, DIM)
-    keys = "⏎ 选择  q 退出  r 刷新  u 消钉"
+    _draw_mixed(draw, (x, header_ty), "  4 groups", view, DIM)
+    keys = "⏎ select  q quit  r refresh  u unpin"
     keys_w = _text_width(keys, view, draw)
     _draw_mixed(draw, (WIDTH - PAD_X - keys_w, header_ty), keys, view, DIM)
 
     y += view.line_h + _s(6)
     inner_w = WIDTH - PAD_X * 2
-    split = PAD_X + inner_w * 2 // 5
+    split = PAD_X + inner_w * 38 // 100
     divider = _mix(BG, BLUE, 0.28)
     draw.line((split, y, split, HEIGHT - _s(16)), fill=divider, width=_s(1))
     left_x = PAD_X
     right_x = split + _s(16)
     pane_ty = _row_text_y(view, y)
-    _draw_mixed(draw, (left_x, pane_ty), "代理组  ↑↓", view, DIM)
-    _draw_mixed(draw, (right_x, pane_ty), "默认  ·  Selector  ·  当前 美国", view, DIM)
+    _draw_mixed(draw, (left_x, pane_ty), "Proxy Groups", view, DIM)
+    _draw_mixed(draw, (right_x, pane_ty), "[默认] 美国 ✓", view, DIM)
     y += view.line_h
 
     groups = [
         ("[Selector]", "默认", "美国", True),
-        ("[URLTest]", "自动选择", "HK-02 *", False),
+        ("[URLTest]", "自动选择", "HK-02", False),
         ("[Selector]", "香港", "HK-02", False),
         ("[Selector]", "美国", "US-01", False),
     ]
     nodes = [
-        ("自动选择", False),
-        ("香港", False),
-        ("美国", True),
+        ("自动选择", "44ms", False),
+        ("香港", "38ms", False),
+        ("美国", "52ms", True),
     ]
     row_y = y
     for type_tag, name, now, selected in groups:
@@ -380,7 +380,7 @@ def render_tui_frame(chrome: TerminalView) -> Image.Image:
         row_y += view.line_h
 
     row_y = y
-    for name, current in nodes:
+    for name, delay, current in nodes:
         if current:
             draw.rectangle(
                 (
@@ -393,11 +393,8 @@ def render_tui_frame(chrome: TerminalView) -> Image.Image:
             )
         nx = right_x
         ty = _row_text_y(view, row_y)
-        mark = "● " if current else "  "
-        nx = _draw_mixed(draw, (nx, ty), mark, view, GREEN if current else DIM)
-        _draw_mixed(
-            draw, (nx, ty), name, view, TEXT if current else DIM
-        )
+        nx = _draw_mixed(draw, (nx, ty), name, view, TEXT if current else DIM)
+        _draw_mixed(draw, (nx, ty), f"  {delay}", view, DIM)
         row_y += view.line_h
     return img
 

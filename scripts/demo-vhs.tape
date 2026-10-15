@@ -62,5 +62,5 @@ Sleep 200ms
 
 Type "mihomo-ctrl tui"
 Enter
-Wait+Screen /代理组/
+Wait+Screen /Proxy Groups/
 Sleep 3.5s

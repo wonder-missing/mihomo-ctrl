@@ -159,12 +159,15 @@ def build_parser() -> argparse.ArgumentParser:
   1. 观察   mihomo-ctrl lsg
             记下入口组（常见是「默认」）现在的指向。
   2. 调整   代理结构存在分层（如「默认」→「自动选择」→ 香港节点，
-            「默认」→「美国」→ 具体美国节点），禁止跨层级直接指定叶子节点。
+            「默认」→「美国」→ 具体美国节点），禁止跨层级直接指定叶子节点
+            （工具会拒绝这类切换；确实要切加 --force）。
             若目标地区组内选项不健康，先切地区组：
               mihomo-ctrl switch 美国 '<节点名>'
             再将默认组切到该地区：
               mihomo-ctrl switch 默认 美国
   3. 重试   切完后重跑刚才失败的网络请求。
+            switch / unpin 会复核结果：没生效会报 "did not stick" 并以非零退出，
+            就当没切成（通常是目标不健康，Mihomo 当场丢弃了这次指定）。
   4. 复原   任务完成后必须将代理恢复原状，例如：
               mihomo-ctrl switch 默认 自动选择
             对 URLTest / Fallback 组执行过 switch 会钉死该组，
