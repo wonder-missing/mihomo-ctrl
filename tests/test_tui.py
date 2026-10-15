@@ -84,6 +84,30 @@ def test_nodes_title_marks_current_and_pinned() -> None:
     assert _nodes_title(pinned) == "[自动选择] HK-01 ⚲"
 
 
+def test_titles_keep_brackets_on_screen() -> None:
+    """Static 默认按标记语言解析：ASCII 方括号（[Gemini]/[subs]）会被当标签吃掉，
+    CJK 方括号（[台湾]）因为不是合法标签名才留下——组名混着两种就看着不一致。"""
+    group = ProxyGroup(
+        "Gemini", "Selector", "[subs][m]香港-优化", ("[subs][m]香港-优化",)
+    )
+
+    class Preview(MihomoApp):
+        def on_mount(self) -> None:
+            self.query_one("#groups").focus()
+            self._load_ok([group], {}, "ok")
+
+    async def check() -> None:
+        app = Preview()
+        async with app.run_test(size=(63, 20)) as pilot:
+            await pilot.pause()
+            title = app.query_one("#nodes-pane .pane-title", Static)
+            line = title.render_line(0).text
+            assert "[Gemini]" in line
+            assert "[subs][m]" in line
+
+    asyncio.run(check())
+
+
 def test_keys_hint_follows_bindings() -> None:
     hint = _keys_hint(MihomoApp.BINDINGS)
     assert hint.startswith("⏎ select")

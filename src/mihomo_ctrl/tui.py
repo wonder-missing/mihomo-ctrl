@@ -180,14 +180,14 @@ class MihomoApp(App[None]):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
-            yield Static(_APP_TITLE, id="title")
-            yield Static(_keys_hint(self.BINDINGS), id="keys")
+            yield Static(_APP_TITLE, id="title", markup=False)
+            yield Static(_keys_hint(self.BINDINGS), id="keys", markup=False)
         with Horizontal(id="body"):
             with Vertical(id="groups-pane"):
-                yield Static("Proxy Groups", classes="pane-title")
+                yield Static("Proxy Groups", classes="pane-title", markup=False)
                 yield ListView(id="groups")
             with Vertical(id="nodes-pane"):
-                yield Static("Options", classes="pane-title")
+                yield Static("Options", classes="pane-title", markup=False)
                 yield ListView(id="nodes")
 
     def on_mount(self) -> None:
