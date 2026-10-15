@@ -26,9 +26,7 @@ mihomo-ctrl unpin <组名>  # 取消 URLTest/Fallback 组的钉死
 
 ## 📝 Git 约定
 
-你不用主动 commit。做完后问我要不要提交即可。
-需要的话直接 commit 到 `main`，不要开新分支。
-commit message 用简短英文，不要写多行说明。
+任务完工就 commit 到 `main`，不要创建新分支，也不必先问要不要交。commit message 用简要英文。
 
 ## 🏗️ 环境与依赖
 
