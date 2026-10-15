@@ -13,12 +13,12 @@
 #   ./scripts/sim-install.sh
 #   ./scripts/sim-install.sh --local
 #
-# 回滚：rm -rf /tmp/mihomo-ctl-install-sim
+# 回滚：rm -rf /tmp/mihomo-ctrl-install-sim
 set -euo pipefail
 
 # CDPATH 若有值，cd 可能跑偏或往 stdout 打路径。
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
-SIM="${SIM_DIR:-/tmp/mihomo-ctl-install-sim}"
+SIM="${SIM_DIR:-/tmp/mihomo-ctrl-install-sim}"
 HOME_DIR="$SIM/home"
 LOCAL=0
 
@@ -80,21 +80,21 @@ echo "INSTALL_EXIT:$?" | tee -a "$SIM/install.log"
 if [ "$LOCAL" -eq 1 ]; then
     echo ""
     echo "==== 第二场：卸掉 GitHub 版，改用当前仓库 + Python 3.9 ===="
-    uv tool uninstall mihomo-ctl
+    uv tool uninstall mihomo-ctrl
     uv tool install --force --python 3.9 \
-        "mihomo-ctl[tui] @ ${ROOT}" 2>&1 | tee "$SIM/install-local-39.log"
+        "mihomo-ctrl[tui] @ ${ROOT}" 2>&1 | tee "$SIM/install-local-39.log"
 fi
 
 {
     echo "==== 结果 ===="
     command -v uv
     uv --version
-    command -v mihomo-ctl
+    command -v mihomo-ctrl
     uv tool list
     echo "---- shebang ----"
-    head -1 "$(command -v mihomo-ctl)"
+    head -1 "$(command -v mihomo-ctrl)"
     echo "---- --help ----"
-    mihomo-ctl --help | head -8
+    mihomo-ctrl --help | head -8
 } | tee "$SIM/after.txt"
 
 echo ""

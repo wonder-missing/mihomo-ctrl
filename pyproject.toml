@@ -1,5 +1,5 @@
 [project]
-name = "mihomo-ctl"
+name = "mihomo-ctrl"
 version = "0.1.0"
 description = "Mihomo CLI 控制工具"
 readme = "README.md"
@@ -33,19 +33,19 @@ tui = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/wonder-missing/mihomo-ctl"
-Repository = "https://github.com/wonder-missing/mihomo-ctl"
-Issues = "https://github.com/wonder-missing/mihomo-ctl/issues"
+Homepage = "https://github.com/wonder-missing/mihomo-ctrl"
+Repository = "https://github.com/wonder-missing/mihomo-ctrl"
+Issues = "https://github.com/wonder-missing/mihomo-ctrl/issues"
 
 [project.scripts]
-mihomo-ctl = "mihomo_ctl.__main__:main"
+mihomo-ctrl = "mihomo_ctrl.__main__:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mihomo_ctl"]
+packages = ["src/mihomo_ctrl"]
 
 [dependency-groups]
 dev = [

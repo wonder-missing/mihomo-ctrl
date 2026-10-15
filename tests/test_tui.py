@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 from textual.widgets import Footer, Static
 
-from mihomo_ctl.client import ProxyGroup
-from mihomo_ctl.tui import (
+from mihomo_ctrl.client import ProxyGroup
+from mihomo_ctrl.tui import (
     _MIN_GROUP_NAME_WIDTH,
     MihomoApp,
     _cell_len,
@@ -93,9 +93,9 @@ def test_keys_hint_follows_bindings() -> None:
 
 
 def test_format_title_separates_with_spaces() -> None:
-    content = MihomoApp().format_title("mihomo-ctl", "正在刷新…")
+    content = MihomoApp().format_title("mihomo-ctrl", "正在刷新…")
     assert "—" not in content.plain
-    assert content.plain == "mihomo-ctl  正在刷新…"
+    assert content.plain == "mihomo-ctrl  正在刷新…"
 
 
 def test_node_prompt_marks_only_current() -> None:

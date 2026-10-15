@@ -2,12 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from mihomo_ctl.cache import (
+from mihomo_ctrl.cache import (
     cache_path_from_lsof,
     cache_paths_from_ps,
     reset_cache,
 )
-from mihomo_ctl.errors import MihomoError
+from mihomo_ctrl.errors import MihomoError
 
 
 def test_ps_extracts_dir_flag() -> None:
@@ -27,9 +27,9 @@ def test_ps_ignores_unrelated_and_grep() -> None:
 
 def test_ps_ignores_ctrl_and_python_module() -> None:
     output = """
-user  10 1  0  0  ??  S   0:00.00 /Users/clawdy/bin/mihomo-ctl reset
-user  11 1  0  0  ??  S   0:00.00 python -m mihomo_ctl reset
-user  12 1  0  0  ??  S   0:00.00 uv run mihomo-ctl lsg
+user  10 1  0  0  ??  S   0:00.00 /Users/clawdy/bin/mihomo-ctrl reset
+user  11 1  0  0  ??  S   0:00.00 python -m mihomo_ctrl reset
+user  12 1  0  0  ??  S   0:00.00 uv run mihomo-ctrl lsg
 user  13 1  0  0  ??  S   0:00.00 /opt/homebrew/bin/mihomo -d /tmp/real
 """
     assert cache_paths_from_ps(output) == [Path("/tmp/real/cache.db")]
@@ -43,13 +43,13 @@ def test_ps_accepts_clash_meta() -> None:
 
 
 def test_ps_skips_current_pid(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("mihomo_ctl.cache.os.getpid", lambda: 42)
+    monkeypatch.setattr("mihomo_ctrl.cache.os.getpid", lambda: 42)
     output = "user  42 1  0  0  ??  S   0:01.00 /opt/homebrew/bin/mihomo -d /tmp/self\n"
     assert cache_paths_from_ps(output) == []
 
 
 def test_default_dirs_do_not_include_cwd() -> None:
-    from mihomo_ctl.cache import DEFAULT_DIRS
+    from mihomo_ctrl.cache import DEFAULT_DIRS
 
     assert "." not in DEFAULT_DIRS
 

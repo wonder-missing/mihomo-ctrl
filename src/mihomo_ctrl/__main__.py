@@ -7,10 +7,10 @@ import logging
 import sys
 from pathlib import Path
 
-from mihomo_ctl.cache import detect_cache_path, reset_cache
-from mihomo_ctl.client import MihomoClient, ProxyGroup, nodes_by_delay
-from mihomo_ctl.config import settings
-from mihomo_ctl.errors import MihomoAPIError, MihomoError
+from mihomo_ctrl.cache import detect_cache_path, reset_cache
+from mihomo_ctrl.client import MihomoClient, ProxyGroup, nodes_by_delay
+from mihomo_ctrl.config import settings
+from mihomo_ctrl.errors import MihomoAPIError, MihomoError
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -82,7 +82,7 @@ def cmd_unpin(args: argparse.Namespace) -> None:
 
 def cmd_tui(_args: argparse.Namespace) -> None:
     try:
-        from mihomo_ctl.tui import run_tui
+        from mihomo_ctrl.tui import run_tui
     except ImportError as exc:
         raise MihomoError(
             "TUI 需要 textual。请按 README 安装（含 TUI）；"
@@ -121,7 +121,7 @@ class VersionAction(argparse.Action):
         from importlib.metadata import PackageNotFoundError, version
 
         try:
-            pkg_version = version("mihomo-ctl")
+            pkg_version = version("mihomo-ctrl")
         except PackageNotFoundError:
             pkg_version = "unknown"
         print(f"{parser.prog} {pkg_version}")
@@ -133,29 +133,29 @@ def build_parser() -> argparse.ArgumentParser:
         description="Mihomo CLI 控制工具。用 --help 即可当作 SKILL。",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""建议操作流程（观察 → 调整 → 重试 → 复原）:
-  1. 观察   mihomo-ctl lsg
+  1. 观察   mihomo-ctrl lsg
             记下入口组（常见是「默认」）现在的指向。
   2. 调整   代理结构存在分层（如「默认」→「自动选择」→ 香港节点，
             「默认」→「美国」→ 具体美国节点），禁止跨层级直接指定叶子节点。
             若目标地区组内选项不健康，先切地区组：
-              mihomo-ctl switch 美国 '<节点名>'
+              mihomo-ctrl switch 美国 '<节点名>'
             再将默认组切到该地区：
-              mihomo-ctl switch 默认 美国
+              mihomo-ctrl switch 默认 美国
   3. 重试   切完后重跑刚才失败的网络请求。
   4. 复原   任务完成后必须将代理恢复原状，例如：
-              mihomo-ctl switch 默认 自动选择
+              mihomo-ctrl switch 默认 自动选择
             对 URLTest / Fallback 组执行过 switch 会钉死该组，
             用 unpin 取消钉死、恢复自动选择。
             不要执行 reset（会删 cache.db，只留给人）。
             不要执行 tui（给人用的界面）。
 
 示例:
-  mihomo-ctl lsg
-  mihomo-ctl lsg 默认
-  mihomo-ctl ls
-  mihomo-ctl switch 默认 美国
-  mihomo-ctl switch 美国 '<节点名>'
-  mihomo-ctl unpin 自动选择
+  mihomo-ctrl lsg
+  mihomo-ctrl lsg 默认
+  mihomo-ctrl ls
+  mihomo-ctrl switch 默认 美国
+  mihomo-ctrl switch 美国 '<节点名>'
+  mihomo-ctrl unpin 自动选择
 """,
     )
     parser.add_argument("-V", "--version", action=VersionAction)

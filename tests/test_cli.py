@@ -4,14 +4,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mihomo_ctl.__main__ import (
+from mihomo_ctrl.__main__ import (
     _print_groups,
     build_parser,
     cmd_list_proxy_groups,
     cmd_unpin,
     resolve_switch_target,
 )
-from mihomo_ctl.client import ProxyGroup
+from mihomo_ctrl.client import ProxyGroup
 
 
 def test_single_arg_switch_uses_default_group() -> None:
@@ -42,7 +42,7 @@ def test_version_option_prints_package_version(capsys) -> None:
         parser.parse_args(["--version"])
     assert exc_info.value.code == 0
     out = capsys.readouterr().out
-    assert version("mihomo-ctl") in out
+    assert version("mihomo-ctrl") in out
     assert "unknown" not in out
 
 
@@ -50,7 +50,7 @@ def test_lsg_group_prints_nodes_by_delay(capsys) -> None:
     group = ProxyGroup("美国", "Selector", "slow", ("slow", "none", "fast"))
     client = _fake_client(group)
     client.delay_map.return_value = {"slow": 200, "fast": 20}
-    with patch("mihomo_ctl.__main__.MihomoClient", return_value=client):
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
         cmd_list_proxy_groups(SimpleNamespace(group="美国"))
     options = capsys.readouterr().out.split("Options:", 1)[1]
     assert options.index("fast") < options.index("slow") < options.index("none")
@@ -81,7 +81,7 @@ def _fake_client(group: ProxyGroup) -> MagicMock:
 def test_cmd_unpin_skips_when_not_pinned(capsys) -> None:
     group = ProxyGroup("自动选择", "URLTest", "HK-01", ("HK-01",))
     client = _fake_client(group)
-    with patch("mihomo_ctl.__main__.MihomoClient", return_value=client):
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
         cmd_unpin(SimpleNamespace(group="自动选择"))
     client.unpin.assert_not_called()
     assert "not pinned" in capsys.readouterr().out
@@ -90,7 +90,7 @@ def test_cmd_unpin_skips_when_not_pinned(capsys) -> None:
 def test_cmd_unpin_deletes_when_pinned(capsys) -> None:
     group = ProxyGroup("自动选择", "URLTest", "HK-01", ("HK-01",), "HK-01")
     client = _fake_client(group)
-    with patch("mihomo_ctl.__main__.MihomoClient", return_value=client):
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
         cmd_unpin(SimpleNamespace(group="自动选择"))
     client.unpin.assert_called_once_with("自动选择")
     assert "Unpinned" in capsys.readouterr().out

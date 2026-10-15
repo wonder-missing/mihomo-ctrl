@@ -9,8 +9,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from mihomo_ctl.config import Settings, settings
-from mihomo_ctl.errors import MihomoAPIError, MihomoConnectionError, MihomoError
+from mihomo_ctrl.config import Settings, settings
+from mihomo_ctrl.errors import MihomoAPIError, MihomoConnectionError, MihomoError
 
 logger = logging.getLogger(__name__)
 

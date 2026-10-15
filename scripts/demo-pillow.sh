@@ -6,4 +6,4 @@ set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 mkdir -p docs
-uv run --with pillow python "$ROOT/scripts/demo-pillow.py" --title mihomo-ctl --out "${1:-"$ROOT/docs/demo.gif"}"
+uv run --with pillow python "$ROOT/scripts/demo-pillow.py" --title mihomo-ctrl --out "${1:-"$ROOT/docs/demo.gif"}"

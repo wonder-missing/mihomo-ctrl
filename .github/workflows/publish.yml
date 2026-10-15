@@ -42,8 +42,8 @@ jobs:
             exit 1
           fi
           for pkg in "${pkgs[@]}"; do
-            uv run --isolated --no-project --with "$pkg" -- mihomo-ctl --version
-            uv run --isolated --no-project --with "$pkg" -- mihomo-ctl --help
+            uv run --isolated --no-project --with "$pkg" -- mihomo-ctrl --version
+            uv run --isolated --no-project --with "$pkg" -- mihomo-ctrl --help
           done
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/mihomo-ctl
+      url: https://pypi.org/p/mihomo-ctrl
     permissions:
       id-token: write
     steps:
