@@ -117,6 +117,7 @@ class MihomoClient:
         self.config = config or settings
 
     def close(self) -> None:
+        # urllib 每次请求独立连接，没有常驻资源要释放；留着是为了 with 形状。
         return None
 
     def __enter__(self) -> MihomoClient:
