@@ -166,7 +166,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mihomo-ctrl"
+name = "mihomo-ctl"
 version = "0.1.0"
 source = { editable = "." }
 

@@ -12,19 +12,19 @@ TAPE="$ROOT/scripts/demo-vhs.tape"
 OUT="${1:-"$ROOT/docs/demo.gif"}"
 mkdir -p "$BIN" docs
 
-if [ ! -x "$ROOT/.venv/bin/mihomo-ctrl" ]; then
+if [ ! -x "$ROOT/.venv/bin/mihomo-ctl" ]; then
     uv sync --extra tui
 fi
 
-cat > "$BIN/mihomo-ctrl" <<EOF
+cat > "$BIN/mihomo-ctl" <<EOF
 #!/usr/bin/env bash
 export MIHOMO_API_URL="http://127.0.0.1:${PORT}"
 unset NO_COLOR CLICOLOR CLICOLOR_FORCE FORCE_COLOR
 export COLORTERM=truecolor
 export TERM=xterm-256color
-exec "$ROOT/.venv/bin/mihomo-ctrl" "\$@"
+exec "$ROOT/.venv/bin/mihomo-ctl" "\$@"
 EOF
-chmod +x "$BIN/mihomo-ctrl"
+chmod +x "$BIN/mihomo-ctl"
 
 cat > "$ROOT/.demo-env" <<EOF
 export PATH="${BIN}:\$PATH"

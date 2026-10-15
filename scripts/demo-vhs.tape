@@ -31,7 +31,7 @@ Sleep 200ms
 Show
 Sleep 500ms
 
-Type "mihomo-ctrl lsg"
+Type "mihomo-ctl lsg"
 Enter
 Wait+Screen /Mihomo Proxy Groups/
 Sleep 2.8s
@@ -39,7 +39,7 @@ Sleep 2.8s
 Ctrl+L
 Sleep 200ms
 
-Type "mihomo-ctrl lsg 美国"
+Type "mihomo-ctl lsg 美国"
 Enter
 Wait+Screen /Proxy Group: 美国/
 Sleep 3.2s
@@ -47,12 +47,12 @@ Sleep 3.2s
 Ctrl+L
 Sleep 200ms
 
-Type "mihomo-ctrl switch 默认 美国"
+Type "mihomo-ctl switch 默认 美国"
 Enter
 Wait+Screen /Switched proxy group/
 Sleep 2s
 
-Type "mihomo-ctrl lsg"
+Type "mihomo-ctl lsg"
 Enter
 Wait+Screen /默认 -> 美国/
 Sleep 2.8s
@@ -60,7 +60,7 @@ Sleep 2.8s
 Ctrl+L
 Sleep 200ms
 
-Type "mihomo-ctrl tui"
+Type "mihomo-ctl tui"
 Enter
 Wait+Screen /代理组/
 Sleep 3.5s

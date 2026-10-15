@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-TITLE = "mihomo-ctrl"
+TITLE = "mihomo-ctl"
 BAR_H = 40
 DIM = (108, 112, 134)
 FONT_PATH = "/System/Library/Fonts/Menlo.ttc"

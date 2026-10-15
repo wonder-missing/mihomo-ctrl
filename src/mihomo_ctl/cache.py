@@ -5,7 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from mihomo_ctrl.errors import MihomoError
+from mihomo_ctl.errors import MihomoError
 
 logger = logging.getLogger(__name__)
 

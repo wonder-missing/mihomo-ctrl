@@ -10,15 +10,15 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request
 
-from mihomo_ctrl.client import (
+from mihomo_ctl.client import (
     MihomoClient,
     delay_sort_key,
     is_noise_or_group,
     latest_delay,
     nodes_by_delay,
 )
-from mihomo_ctrl.config import Settings
-from mihomo_ctrl.errors import MihomoAPIError, MihomoConnectionError, MihomoError
+from mihomo_ctl.config import Settings
+from mihomo_ctl.errors import MihomoAPIError, MihomoConnectionError, MihomoError
 
 
 def test_system_builtin_is_noise() -> None:
@@ -87,7 +87,7 @@ def _client() -> MihomoClient:
 
 @contextmanager
 def _patch_urlopen(handler: Callable[..., object]) -> Iterator[None]:
-    with patch("mihomo_ctrl.client.urlopen", side_effect=handler):
+    with patch("mihomo_ctl.client.urlopen", side_effect=handler):
         yield
 
 

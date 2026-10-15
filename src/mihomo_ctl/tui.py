@@ -11,7 +11,7 @@ from textual.widgets import Header, OptionList, Static
 from textual.widgets._header import HeaderIcon, HeaderTitle
 from textual.widgets.option_list import Option
 
-from mihomo_ctrl.client import MihomoClient, ProxyGroup, nodes_by_delay
+from mihomo_ctl.client import MihomoClient, ProxyGroup, nodes_by_delay
 
 _MIN_GROUP_NAME_WIDTH = 8
 
@@ -89,7 +89,7 @@ class AppHeader(Header):
 class MihomoApp(App[None]):
     """给人用的界面。不要告诉 Agent。"""
 
-    TITLE = "mihomo-ctrl"
+    TITLE = "mihomo-ctl"
     SUB_TITLE = "正在读取 Mihomo…"
     CSS = """
     Screen {

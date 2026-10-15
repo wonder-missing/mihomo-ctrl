@@ -1,6 +1,6 @@
 from pytest import MonkeyPatch
 
-from mihomo_ctrl.config import Settings
+from mihomo_ctl.config import Settings
 
 
 def test_from_env_reads_prefix(monkeypatch: MonkeyPatch) -> None:

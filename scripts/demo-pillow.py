@@ -89,7 +89,7 @@ class TuiStill:
 Step = TypeCmd | Output | Wait | Clear | Screen | TuiStill
 
 SCENE: list[Step] = [
-    TypeCmd("mihomo-ctrl lsg"),
+    TypeCmd("mihomo-ctl lsg"),
     Output(
         "=== Mihomo Proxy Groups ===\n"
         "- [Selector] 默认 -> 自动选择\n"
@@ -99,7 +99,7 @@ SCENE: list[Step] = [
     ),
     Wait(2800),
     Clear(),
-    TypeCmd("mihomo-ctrl lsg 美国"),
+    TypeCmd("mihomo-ctl lsg 美国"),
     Output(
         "=== Proxy Group: 美国 ===\n"
         "Type: Selector\n"
@@ -111,10 +111,10 @@ SCENE: list[Step] = [
     ),
     Wait(3200),
     Clear(),
-    TypeCmd("mihomo-ctrl switch 默认 美国"),
+    TypeCmd("mihomo-ctl switch 默认 美国"),
     Output('Switched proxy group "默认" to "美国"'),
     Wait(2000),
-    TypeCmd("mihomo-ctrl lsg"),
+    TypeCmd("mihomo-ctl lsg"),
     Output(
         "=== Mihomo Proxy Groups ===\n"
         "- [Selector] 默认 -> 美国\n"
@@ -124,7 +124,7 @@ SCENE: list[Step] = [
     ),
     Wait(2800),
     Clear(),
-    TypeCmd("mihomo-ctrl tui"),
+    TypeCmd("mihomo-ctl tui"),
     Wait(400),
     TuiStill(3000),
 ]
@@ -300,7 +300,7 @@ def _tui_view(title: str) -> TerminalView:
     split = PAD_X + inner * 2 // 5
     left_w = split - PAD_X - _s(10)
     right_w = WIDTH - PAD_X - (split + _s(16))
-    left_header = "mihomo-ctrl  4 个代理组"
+    left_header = "mihomo-ctl  4 个代理组"
     keys = "⏎ 选择  q 退出  r 刷新  u 消钉"
     group = "[URLTest] 自动选择  HK-02 *"
     node_title = "默认  ·  Selector  ·  当前 美国"
@@ -326,7 +326,7 @@ def render_tui_frame(chrome: TerminalView) -> Image.Image:
     _draw_chrome(draw, chrome)
     y = CHROME_H + _s(8)
     header_ty = _row_text_y(view, y)
-    x = _draw_mixed(draw, (PAD_X, header_ty), "mihomo-ctrl", view, TEXT)
+    x = _draw_mixed(draw, (PAD_X, header_ty), "mihomo-ctl", view, TEXT)
     _draw_mixed(draw, (x, header_ty), "  4 个代理组", view, DIM)
     keys = "⏎ 选择  q 退出  r 刷新  u 消钉"
     keys_w = _text_width(keys, view, draw)
@@ -531,7 +531,7 @@ def save_gif(frames: list[Image.Image], durations: list[int], dest: Path) -> Non
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--title", default="mihomo-ctrl")
+    parser.add_argument("--title", default="mihomo-ctl")
     parser.add_argument("--out", default="docs/demo.gif")
     args = parser.parse_args()
     dest = Path(args.out)

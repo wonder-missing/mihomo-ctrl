@@ -1,28 +1,28 @@
-本工具最初为 AI Agent 而作。拿到 `mihomo-ctrl`，先跑 `--help`，输出本身就能充当一份 SKILL。
+本工具最初为 AI Agent 而作。拿到 `mihomo-ctl`，先跑 `--help`，输出本身就能充当一份 SKILL。
 
 本仓库开发时若遇到 429 / 403 / 网络不可达，按下面流程切换出口，做完再复原。不要跑 `reset` 或 `tui`。
 
 ## 🛠️ 给 Agent 的用法
 
 ```bash
-mihomo-ctrl --help  # 查看完整用法
-mihomo-ctrl lsg  #  列出代理组及各组的选中选项
-mihomo-ctrl lsg <组名>  # 查看某组下的选项及延迟
-mihomo-ctrl ls  # 按延迟排序列出所有节点
-mihomo-ctrl switch <组名> <节点>  # 切换节点
-mihomo-ctrl unpin <组名>  # 取消 URLTest/Fallback 组的钉死
+mihomo-ctl --help  # 查看完整用法
+mihomo-ctl lsg  #  列出代理组及各组的选中选项
+mihomo-ctl lsg <组名>  # 查看某组下的选项及延迟
+mihomo-ctl ls  # 按延迟排序列出所有节点
+mihomo-ctl switch <组名> <节点>  # 切换节点
+mihomo-ctl unpin <组名>  # 取消 URLTest/Fallback 组的钉死
 ```
 
 **建议操作流程（观察 → 调整 → 重试 → 复原）**：
 
-1. **观察**：`mihomo-ctrl lsg` 记下入口组（常见是「默认」）现在的指向。
+1. **观察**：`mihomo-ctl lsg` 记下入口组（常见是「默认」）现在的指向。
 2. **调整**：代理结构存在分层（如「默认」→「自动选择」→ 香港节点，「默认」→「美国」→ 具体美国节点），**禁止跨层级直接指定叶子节点**。采用两步切换：
-   - 若目标地区组内选项不健康，先切地区组：`mihomo-ctrl switch 美国 '<节点名>'`
-   - 再将默认组切到该地区：`mihomo-ctrl switch 默认 美国`
+   - 若目标地区组内选项不健康，先切地区组：`mihomo-ctl switch 美国 '<节点名>'`
+   - 再将默认组切到该地区：`mihomo-ctl switch 默认 美国`
 3. **重试**：切完后重跑刚才失败的网络请求。
-4. **复原**：任务完成后**必须**将代理恢复原状。例如：`mihomo-ctrl switch 默认 自动选择`。
-   - **不要执行 `mihomo-ctrl reset`**。它会删掉 `cache.db`，只留给人在配置搞乱时用。
-   - **不要执行 `mihomo-ctrl tui`**。那是给人用的界面。
+4. **复原**：任务完成后**必须**将代理恢复原状。例如：`mihomo-ctl switch 默认 自动选择`。
+   - **不要执行 `mihomo-ctl reset`**。它会删掉 `cache.db`，只留给人在配置搞乱时用。
+   - **不要执行 `mihomo-ctl tui`**。那是给人用的界面。
 
 ## 📝 Git 约定
 
@@ -36,7 +36,7 @@ commit message 用简短英文，不要写多行说明。
 - 项目辅助脚本用 Bash（`#!/usr/bin/env bash`），直接 `./scripts/…` 执行。
   不要 `sh scripts/…`，因为 `sh` 会丢掉 shebang。
 - 模拟「无 uv、有系统 Python」的安装：`./scripts/sim-install.sh`（隔离 `$HOME`，不碰本机 uv）。
-  测未发布的 3.9 兼容：`./scripts/sim-install.sh --local`。回滚：`rm -rf /tmp/mihomo-ctrl-install-sim`。
+  测未发布的 3.9 兼容：`./scripts/sim-install.sh --local`。回滚：`rm -rf /tmp/mihomo-ctl-install-sim`。
   不要设置 `UV_INSTALL_DIR`，否则官方安装器不把 `uv` 放进 `~/.local/bin`。
 - 要跑 Python 时用 `uv run`，不要直接 `python`，这样才能用上项目自己的版本和虚拟环境。
 - 全局已经配好：`uv run` 会自动加载项目目录里的 `.env`。
