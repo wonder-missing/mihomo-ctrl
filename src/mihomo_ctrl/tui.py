@@ -128,6 +128,9 @@ class MihomoApp(App[None]):
         border: none;
         scrollbar-size-vertical: 1;
         scrollbar-size-horizontal: 1;
+        /* 不设 overflow-x 的话 allow_horizontal_scroll 为 False，
+           横向滚轮（SGR 66/67，网页终端左右滑就发这个）会被直接忽略。 */
+        overflow-x: auto;
     }
     ListView:focus {
         border: none;

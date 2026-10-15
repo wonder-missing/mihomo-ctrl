@@ -253,6 +253,9 @@ def test_narrow_terminal_pans_nodes_horizontally() -> None:
             assert left.size.width > 0 and right.size.width > 0
             view = app.query_one("#nodes", ListView)
             assert view.max_scroll_x > 0
+            # 横向滚轮（网页终端左右滑 → SGR 66/67）靠这个开关放行；
+            # 默认 overflow-x: hidden 会让事件被静默忽略。
+            assert view.allow_horizontal_scroll is True
             view.focus()
             await pilot.pause()
             await pilot.press("right")
