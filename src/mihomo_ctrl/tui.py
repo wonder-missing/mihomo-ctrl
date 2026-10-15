@@ -115,10 +115,10 @@ class MihomoApp(App[None]):
         padding: 0;
     }
     #groups-pane {
-        width: 61.8fr;
+        width: 38.2fr;
     }
     #nodes-pane {
-        width: 38.2fr;
+        width: 61.8fr;
         border-left: solid $accent 40%;
     }
     /* 选项用 ListView（子节点）而不是 OptionList：后者自己画行、内容不溢出，

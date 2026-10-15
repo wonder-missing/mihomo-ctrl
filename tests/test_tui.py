@@ -205,7 +205,7 @@ def test_layout_clips_long_now_and_keeps_title() -> None:
             left = app.query_one("#groups-pane")
             right = app.query_one("#nodes-pane")
             ratio = left.size.width / right.size.width
-            assert 1.5 < ratio < 1.7  # 黄金比（左 61.8 / 右 38.2，含边框误差）
+            assert 0.55 < ratio < 0.68  # 黄金比：左 38.2 / 右 61.8（含边框误差）
             title = app.query_one("#nodes-pane .pane-title", Static)
             assert isinstance(title.content, str)
             assert title.content == f"[默认] {now} ✓"
