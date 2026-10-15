@@ -81,7 +81,7 @@ def test_nodes_title_marks_current_and_pinned() -> None:
         fixed="HK-01",
     )
     assert _nodes_title(free) == "[美国] US-01 ✓"
-    assert _nodes_title(pinned) == "[自动选择] HK-01 \U0001f4cc︎"
+    assert _nodes_title(pinned) == "[自动选择] HK-01 ⚲"
 
 
 def test_keys_hint_follows_bindings() -> None:

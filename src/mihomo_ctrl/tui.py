@@ -51,7 +51,7 @@ def _group_prompt(group: ProxyGroup, type_width: int, name_width: int) -> Conten
     )
 
 
-_PINNED_MARK = "\U0001f4cc︎"  # 📌 + VS15：要求按普通文本渲染，别上彩色 emoji
+_PINNED_MARK = "⚲"  # 文本字形（非 emoji），用自己的字色渲染
 
 
 def _nodes_title(group: ProxyGroup) -> str:
