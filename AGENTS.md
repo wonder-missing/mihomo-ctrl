@@ -37,6 +37,8 @@ mihomo-ctrl unpin <组名>  # 取消 URLTest/Fallback 组的钉死
   测未发布的 3.9 兼容：`./scripts/sim-install.sh --local`。回滚：`rm -rf /tmp/mihomo-ctrl-install-sim`。
   不要设置 `UV_INSTALL_DIR`，否则官方安装器不把 `uv` 放进 `~/.local/bin`。
 - 要跑 Python 时用 `uv run`，不要直接 `python`，这样才能用上项目自己的版本和虚拟环境。
+- 本机装的是 `git+…/mihomo-ctrl` 的快照：commit + push 之后要刷新才生效，跑
+  `uv tool install --force "mihomo-ctrl[tui] @ git+https://github.com/wonder-missing/mihomo-ctrl"`。
 - 全局已经配好：`uv run` 会自动加载项目目录里的 `.env`。
 
 ## 🎯 核心开发纪律
