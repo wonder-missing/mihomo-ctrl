@@ -12,7 +12,8 @@ from mihomo_ctrl.client import (
     MihomoClient,
     ProxyGroup,
     cross_level_switch_target,
-    nodes_by_delay,
+    nodes_for_group,
+    uses_member_order,
 )
 from mihomo_ctrl.config import settings
 from mihomo_ctrl.errors import MihomoAPIError, MihomoError
@@ -38,15 +39,29 @@ def cmd_list_proxy_groups(args: argparse.Namespace) -> None:
             _print_groups(client.list_groups())
             return
 
-        group = client.get_group(args.group)
+        proxies = client.proxies()
+        group = client.get_group(args.group, proxies)
         delays = client.delay_map()
+        group_names = {
+            name
+            for name, info in proxies.items()
+            if isinstance(info, dict) and "all" in info
+        }
         print(f"=== Proxy Group: {group.name} ===")
         print(f"Type: {group.proxy_type}")
         print(f"Current: {group.now}")
         if group.fixed:
             print(f"Pinned: {group.fixed}")
+        order = (
+            "member"
+            if uses_member_order(group.proxy_type, group.nodes, group_names)
+            else "delay"
+        )
+        print(f"Order: {order}")
         print("Options:")
-        for node in nodes_by_delay(group.nodes, delays):
+        for node in nodes_for_group(
+            group.proxy_type, group.nodes, delays, group_names
+        ):
             delay = delays.get(node)
             delay_str = f" ({delay}ms)" if delay is not None else ""
             marker = "[*]" if node == group.now else "[ ]"
@@ -195,9 +210,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_groups = subparsers.add_parser(
         "list-proxy-groups",
         aliases=["lsg"],
-        help="列出代理组及各组的选中选项；带组名则按延迟列出该组选项",
+        help="列出代理组及各组的选中选项；带组名则按该组策略列出选项",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="列出代理组，或按延迟列出指定组内的选项。",
+        description=(
+            "列出代理组。指定组名时，Fallback 和含组的 Selector 按成员顺序；"
+            "URLTest 和纯叶子 Selector 按延迟。延迟仍附在名字后面。"
+        ),
     )
     p_groups.add_argument("group", nargs="?", help="代理组名（省略则列出所有代理组）")
     p_groups.set_defaults(func=cmd_list_proxy_groups)

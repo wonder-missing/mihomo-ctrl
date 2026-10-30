@@ -64,6 +64,31 @@ def nodes_by_delay(nodes: tuple[str, ...], delays: dict[str, int]) -> list[str]:
     return [name for name, _, _ in items]
 
 
+def uses_member_order(
+    proxy_type: str, nodes: tuple[str, ...], group_names: set[str]
+) -> bool:
+    """URLTest、以及成员全是叶子的 Selector，按延迟选人。
+
+    Fallback 从前往后用第一个能通的。成员里还有组的 Selector，顺序就是配方。
+    """
+    if proxy_type == "URLTest":
+        return False
+    if proxy_type == "Selector":
+        return any(name in group_names for name in nodes)
+    return True
+
+
+def nodes_for_group(
+    proxy_type: str,
+    nodes: tuple[str, ...],
+    delays: dict[str, int],
+    group_names: set[str],
+) -> list[str]:
+    if uses_member_order(proxy_type, nodes, group_names):
+        return list(nodes)
+    return nodes_by_delay(nodes, delays)
+
+
 @dataclass(frozen=True)
 class ProxyGroup:
     name: str

@@ -50,14 +50,46 @@ def test_version_option_prints_package_version(capsys) -> None:
     assert "unknown" not in out
 
 
-def test_lsg_group_prints_nodes_by_delay(capsys) -> None:
+def test_lsg_leaf_selector_prints_nodes_by_delay(capsys) -> None:
     group = ProxyGroup("美国", "Selector", "slow", ("slow", "none", "fast"))
     client = _fake_client(group)
     client.delay_map.return_value = {"slow": 200, "fast": 20}
     with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
         cmd_list_proxy_groups(SimpleNamespace(group="美国"))
-    options = capsys.readouterr().out.split("Options:", 1)[1]
+    out = capsys.readouterr().out
+    assert "Order: delay" in out
+    options = out.split("Options:", 1)[1]
     assert options.index("fast") < options.index("slow") < options.index("none")
+
+
+def test_lsg_fallback_prints_member_order(capsys) -> None:
+    group = ProxyGroup("稳定", "Fallback", "first", ("first", "second", "fast"))
+    client = _fake_client(group)
+    client.delay_map.return_value = {"fast": 10, "first": 400}
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
+        cmd_list_proxy_groups(SimpleNamespace(group="稳定"))
+    options = capsys.readouterr().out.split("Options:", 1)[1]
+    assert options.index("first") < options.index("second") < options.index("fast")
+    assert "(400ms)" in options
+    assert "(10ms)" in options
+
+
+def test_lsg_selector_of_groups_prints_member_order(capsys) -> None:
+    group = ProxyGroup("其他", "Selector", "稳定", ("稳定", "香港", "自动选择"))
+    client = _fake_client(group)
+    client.proxies.return_value = {
+        "其他": {"type": "Selector", "all": ["稳定", "香港", "自动选择"]},
+        "稳定": {"type": "Fallback", "all": ["first"]},
+        "香港": {"type": "Selector", "all": ["HK-01"]},
+        "自动选择": {"type": "URLTest", "all": ["SG-01"]},
+    }
+    client.delay_map.return_value = {"香港": 10, "自动选择": 20}
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
+        cmd_list_proxy_groups(SimpleNamespace(group="其他"))
+    out = capsys.readouterr().out
+    assert "Order: member" in out
+    options = out.split("Options:", 1)[1]
+    assert options.index("稳定") < options.index("香港") < options.index("自动选择")
 
 
 def test_print_groups_marks_pinned(capsys) -> None:
@@ -77,6 +109,7 @@ def test_print_groups_marks_pinned(capsys) -> None:
 def _fake_client(group: ProxyGroup) -> MagicMock:
     client = MagicMock()
     client.get_group.return_value = group
+    client.proxies.return_value = {}
     client.__enter__.return_value = client
     client.__exit__.return_value = None
     return client

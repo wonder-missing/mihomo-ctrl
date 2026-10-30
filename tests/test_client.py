@@ -18,6 +18,8 @@ from mihomo_ctrl.client import (
     is_noise_or_group,
     latest_delay,
     nodes_by_delay,
+    nodes_for_group,
+    uses_member_order,
 )
 from mihomo_ctrl.config import Settings
 from mihomo_ctrl.errors import MihomoAPIError, MihomoConnectionError, MihomoError
@@ -66,6 +68,37 @@ def test_nodes_by_delay_orders_timed_first() -> None:
     nodes = ("slow", "none", "fast")
     delays = {"slow": 200, "fast": 20}
     assert nodes_by_delay(nodes, delays) == ["fast", "slow", "none"]
+
+
+def test_fallback_keeps_member_order_despite_delay() -> None:
+    nodes = ("first", "second", "fast")
+    delays = {"fast": 10, "first": 400}
+    assert uses_member_order("Fallback", nodes, set()) is True
+    assert nodes_for_group("Fallback", nodes, delays, set()) == [
+        "first",
+        "second",
+        "fast",
+    ]
+
+
+def test_selector_of_groups_keeps_member_order() -> None:
+    nodes = ("稳定", "香港", "自动选择")
+    delays = {"香港": 10, "自动选择": 20}
+    groups = {"稳定", "香港", "自动选择"}
+    assert uses_member_order("Selector", nodes, groups) is True
+    assert nodes_for_group("Selector", nodes, delays, groups) == list(nodes)
+
+
+def test_leaf_selector_and_urltest_sort_by_delay() -> None:
+    nodes = ("slow", "none", "fast")
+    delays = {"slow": 200, "fast": 20}
+    assert uses_member_order("Selector", nodes, set()) is False
+    assert uses_member_order("URLTest", nodes, {"自动选择"}) is False
+    assert nodes_for_group("URLTest", nodes, delays, set()) == [
+        "fast",
+        "slow",
+        "none",
+    ]
 
 
 class _FakeResponse:

@@ -9,7 +9,7 @@ from textual.containers import Horizontal, Vertical
 from textual.content import Content
 from textual.widgets import Label, ListItem, ListView, Static
 
-from mihomo_ctrl.client import MihomoClient, ProxyGroup, nodes_by_delay
+from mihomo_ctrl.client import MihomoClient, ProxyGroup, nodes_for_group
 
 _MIN_GROUP_NAME_WIDTH = 8
 _APP_TITLE = "mihomo-ctrl"
@@ -369,7 +369,10 @@ class MihomoApp(App[None]):
             view.append(ListItem(Label(Content("(pick a proxy group)"))))
             return
         title.update(_nodes_title(group))
-        nodes = nodes_by_delay(group.nodes, self._delays)
+        group_names = {item.name for item in self._groups}
+        nodes = nodes_for_group(
+            group.proxy_type, group.nodes, self._delays, group_names
+        )
         self._visible_nodes = nodes
         current_index = 0
         items: list[ListItem] = []

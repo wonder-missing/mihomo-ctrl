@@ -64,7 +64,7 @@ mihomo-ctrl lsg
 ```bash
 mihomo-ctrl --help  # 查看完整用法
 mihomo-ctrl lsg  #  列出代理组及各组的选中选项
-mihomo-ctrl lsg <组名>  # 查看某组下的选项及延迟
+mihomo-ctrl lsg <组名>  # Fallback 和含组的 Selector 按成员顺序；URLTest 和纯叶子 Selector 按延迟
 mihomo-ctrl ls  # 按延迟排序列出所有节点
 mihomo-ctrl switch <组名> <节点>  # 切换节点
 mihomo-ctrl unpin <组名>  # 取消 URLTest/Fallback 组的钉死
@@ -90,7 +90,7 @@ TUI 是后来新增的方便人类使用的界面，🤫 不要告诉你的 Agen
 mihomo-ctrl tui
 ```
 
-左栏是代理组、右栏是选中组的选项（按延迟排序，当前项加粗；右栏标题 `[组名] 当前项 ✓`，
+左栏是代理组、右栏是选中组的选项（顺序与 `lsg` 相同，当前项加粗；右栏标题 `[组名] 当前项 ✓`，
 钉死时尾标是 `⚲`）。按键：`⏎` 选中、`r` 刷新、`u` 取消钉死、`q` 退出；
 窄屏放不下时用 `←` `→` 或横向滚动/左右滑动横移，`↑` `↓` 翻选项。
 

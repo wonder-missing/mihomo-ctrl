@@ -7,7 +7,7 @@
 ```bash
 mihomo-ctrl --help  # 查看完整用法
 mihomo-ctrl lsg  #  列出代理组及各组的选中选项
-mihomo-ctrl lsg <组名>  # 查看某组下的选项及延迟
+mihomo-ctrl lsg <组名>  # Fallback 和含组的 Selector 按成员顺序；URLTest 和纯叶子 Selector 按延迟
 mihomo-ctrl ls  # 按延迟排序列出所有节点
 mihomo-ctrl switch <组名> <节点>  # 切换节点
 mihomo-ctrl unpin <组名>  # 取消 URLTest/Fallback 组的钉死
