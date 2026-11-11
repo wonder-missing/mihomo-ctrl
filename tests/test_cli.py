@@ -10,6 +10,7 @@ from mihomo_ctrl.__main__ import (
     cmd_list_proxy_groups,
     cmd_logs,
     cmd_reload,
+    cmd_restart,
     cmd_switch,
     cmd_unpin,
     resolve_switch_target,
@@ -48,8 +49,8 @@ def test_parser_aliases() -> None:
     assert followed.lines == 3
     assert followed.follow is True
     assert followed.level == "warning"
-    assert parser.parse_args(["reload"]).path is None
-    assert parser.parse_args(["reload", "/tmp/c.yaml"]).path == "/tmp/c.yaml"
+    assert parser.parse_args(["reload"]).command == "reload"
+    assert parser.parse_args(["restart"]).command == "restart"
 
 
 def test_version_option_prints_package_version(capsys) -> None:
@@ -180,29 +181,27 @@ def test_cmd_logs_keyboard_interrupt_is_quiet(capsys) -> None:
     assert capsys.readouterr().out == ""
 
 
-def test_cmd_reload_rejects_relative_path() -> None:
-    with pytest.raises(MihomoError, match="绝对路径"):
-        cmd_reload(SimpleNamespace(path="config.yaml"))
+def test_parser_rejects_reload_path() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["reload", "/tmp/c.yaml"])
 
 
-def test_cmd_reload_expands_home_and_prints(capsys) -> None:
+def test_cmd_reload_reloads_startup_config(capsys) -> None:
     client = MagicMock()
     client.__enter__.return_value = client
     with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
-        cmd_reload(SimpleNamespace(path="~/mihomo/config.yaml"))
-    path = client.reload.call_args.args[0]
-    assert path.startswith("/")
-    assert path.endswith("/mihomo/config.yaml")
-    assert f"Reloaded config: {path}" in capsys.readouterr().out
-
-
-def test_cmd_reload_empty_uses_startup_config(capsys) -> None:
-    client = MagicMock()
-    client.__enter__.return_value = client
-    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
-        cmd_reload(SimpleNamespace(path=None))
-    client.reload.assert_called_once_with("")
+        cmd_reload(SimpleNamespace())
+    client.reload.assert_called_once_with()
     assert "Reloaded startup config" in capsys.readouterr().out
+
+
+def test_cmd_restart_posts_and_prints(capsys) -> None:
+    client = MagicMock()
+    client.__enter__.return_value = client
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
+        cmd_restart(SimpleNamespace())
+    client.restart.assert_called_once_with()
+    assert "Restarted" in capsys.readouterr().out
 
 
 def test_cmd_unpin_reports_when_still_pinned() -> None:

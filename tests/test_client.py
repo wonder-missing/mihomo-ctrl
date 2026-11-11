@@ -535,7 +535,7 @@ def test_read_logs_broken_stream_is_connection_error() -> None:
         raise AssertionError("expected MihomoConnectionError")
 
 
-def test_reload_puts_force_and_path() -> None:
+def test_reload_puts_empty_path() -> None:
     seen: list[Request] = []
 
     def handler(request: Request, timeout: float | None = None) -> _FakeResponse:
@@ -543,26 +543,28 @@ def test_reload_puts_force_and_path() -> None:
         assert timeout == 5.0
         return _FakeResponse(204)
 
-    path = "/opt/homebrew/etc/mihomo/config.yaml"
     with _patch_urlopen(handler), _client() as client:
-        client.reload(path)
+        client.reload()
 
     request = seen[0]
     assert request.get_method() == "PUT"
     assert request.full_url.endswith("/configs?force=true")
     assert isinstance(request.data, bytes)
-    assert json.loads(request.data.decode()) == {"path": path, "payload": ""}
+    assert json.loads(request.data.decode()) == {"path": "", "payload": ""}
 
 
-def test_reload_empty_path_uses_startup_config() -> None:
+def test_restart_posts_without_body() -> None:
     seen: list[Request] = []
 
     def handler(request: Request, timeout: float | None = None) -> _FakeResponse:
         seen.append(request)
-        return _FakeResponse(204)
+        assert timeout == 5.0
+        return _FakeResponse(200, {"status": "ok"})
 
     with _patch_urlopen(handler), _client() as client:
-        client.reload()
+        assert client.restart() is None
 
-    assert isinstance(seen[0].data, bytes)
-    assert json.loads(seen[0].data.decode()) == {"path": "", "payload": ""}
+    request = seen[0]
+    assert request.get_method() == "POST"
+    assert request.full_url.endswith("/restart")
+    assert request.data is None

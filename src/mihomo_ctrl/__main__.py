@@ -142,17 +142,16 @@ def cmd_logs(args: argparse.Namespace) -> None:
         return
 
 
-def cmd_reload(args: argparse.Namespace) -> None:
-    raw = args.path or ""
-    path = str(Path(raw).expanduser()) if raw else ""
-    if path and not Path(path).is_absolute():
-        raise MihomoError(f"配置路径必须是绝对路径: {path}")
+def cmd_reload(_args: argparse.Namespace) -> None:
     with MihomoClient() as client:
-        client.reload(path)
-    if path:
-        print(f"Reloaded config: {path}")
-    else:
-        print("Reloaded startup config")
+        client.reload()
+    print("Reloaded startup config")
+
+
+def cmd_restart(_args: argparse.Namespace) -> None:
+    with MihomoClient() as client:
+        client.restart()
+    print("Restarted")
 
 
 def cmd_reset(args: argparse.Namespace) -> None:
@@ -227,7 +226,7 @@ def build_parser() -> argparse.ArgumentParser:
   mihomo-ctrl logs -n 20
   mihomo-ctrl logs -f
   mihomo-ctrl reload
-  mihomo-ctrl reload /absolute/path/config.yaml
+  mihomo-ctrl restart
 
 环境变量（装好的 CLI 只读 shell 环境；仓库里 uv run 会额外加载 .env）:
   MIHOMO_API_URL        External Controller 地址（默认 http://127.0.0.1:9090）
@@ -321,21 +320,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_reload = subparsers.add_parser(
         "reload",
-        help="重载配置（PUT /configs?force=true）",
+        help="重载内核启动时的配置（PUT /configs?force=true）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
-            "重载配置：PUT /configs?force=true，正文 {\"path\", \"payload\"}。\n"
-            "省略路径时 path 为空，内核重载自己启动时的那份配置"
-            "（-d 目录下的 config.yaml）。\n"
-            "传入的路径必须是绝对路径，且在内核的安全路径内。"
+            "重载配置：PUT /configs?force=true，正文 path 为空。\n"
+            "内核只重载自己启动时的那份配置，不接收路径参数。"
         ),
     )
-    p_reload.add_argument(
-        "path",
-        nargs="?",
-        help="配置文件绝对路径（省略则重载启动时的那份）",
-    )
     p_reload.set_defaults(func=cmd_reload)
+
+    p_restart = subparsers.add_parser(
+        "restart",
+        help="用原启动参数重启内核（POST /restart）",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "重启内核：POST /restart。\n"
+            "内核用原来的可执行文件和原来的启动参数重新执行，不接收配置路径。"
+        ),
+    )
+    p_restart.set_defaults(func=cmd_restart)
 
     p_reset = subparsers.add_parser(
         "reset",

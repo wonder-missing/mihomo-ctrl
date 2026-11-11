@@ -309,10 +309,15 @@ class MihomoClient:
                 yielded += 1
                 yield line
 
-    def reload(self, path: str = "") -> None:
-        """PUT /configs?force=true。path 为空时内核重载自己启动时的配置。"""
-        self.request("PUT", "/configs?force=true", {"path": path, "payload": ""})
-        logger.info("reloaded config path=%r", path or "<startup>")
+    def reload(self) -> None:
+        # path 留空：内核只重载自己启动时的那份配置。
+        self.request("PUT", "/configs?force=true", {"path": "", "payload": ""})
+        logger.info("reloaded startup config")
+
+    def restart(self) -> None:
+        # 内核不读正文，用原来的可执行文件和启动参数重新 exec。
+        self.request("POST", "/restart")
+        logger.info("restarted mihomo")
 
     def proxies(self) -> dict[str, Any]:
         payload = self.request("GET", "/proxies")

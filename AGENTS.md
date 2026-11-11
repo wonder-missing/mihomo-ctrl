@@ -12,7 +12,8 @@ mihomo-ctrl ls  # 按延迟排序列出所有节点
 mihomo-ctrl switch <组名> <节点>  # 切换节点
 mihomo-ctrl unpin <组名>  # 取消 URLTest/Fallback 组的钉死
 mihomo-ctrl logs [-n N] [-f]  # 实时日志。-n 收 N 行后退出，-f 持续跟随
-mihomo-ctrl reload [绝对路径]  # 重载配置（PUT /configs?force=true）
+mihomo-ctrl reload  # 重载内核启动时的配置（PUT /configs?force=true）
+mihomo-ctrl restart  # 用原启动参数重启内核（POST /restart）
 ```
 
 **建议操作流程（观察 → 调整 → 重试 → 复原）**：
