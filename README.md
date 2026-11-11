@@ -30,6 +30,20 @@ uv tool install "mihomo-ctrl[tui]"
 uv tool install "mihomo-ctrl[tui] @ git+https://github.com/wonder-missing/mihomo-ctrl"
 ```
 
+已经这样装过、仓库又有新提交时，不必重装。发版前 `--version` 不会变，升级看提交：
+
+```bash
+uv tool upgrade mihomo-ctrl
+```
+
+还没推上去、想先试当前工作树：
+
+```bash
+uv tool install --force --editable "$HOME/workspace/mihomo-ctrl[tui]"
+```
+
+试完回到 git 快照，再跑一次上面的 `uv tool install --force "mihomo-ctrl[tui] @ git+…"`。
+
 已安装 [pipx](https://pipx.pypa.io/) 时：
 
 ```bash
