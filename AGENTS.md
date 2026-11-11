@@ -39,13 +39,8 @@ mihomo-ctrl reload [绝对路径]  # 重载配置（PUT /configs?force=true）
 - 模拟「无 uv、有系统 Python」的安装：`./scripts/sim-install.sh`（隔离 `$HOME`，不碰本机 uv）。
   测未发布的 3.9 兼容：`./scripts/sim-install.sh --local`。回滚：`rm -rf /tmp/mihomo-ctrl-install-sim`。
   不要设置 `UV_INSTALL_DIR`，否则官方安装器不把 `uv` 放进 `~/.local/bin`。
-- 要跑 Python 时用 `uv run`，不要直接 `python`，这样才能用上项目自己的版本和虚拟环境。
-- 本机命令在 `~/.local/bin/mihomo-ctrl`，是 uv tool 装的 git 快照（`uv tool list` 能看到）。`--version` 在发版前一直是 `pyproject.toml` 里的版本号，不能用来判断有没有拿到新提交。
-- 让主人试之前，汇报里写出升级命令，不要只说已经装好：
-  - 已推到 `main`：`uv tool upgrade mihomo-ctrl`（跟 GitHub HEAD；已经是该提交时会说 Nothing to upgrade）
-  - 还没推、先试工作树：`uv tool install --force --editable "$HOME/workspace/mihomo-ctrl[tui]"`
-  - 试完工作树回到 git 快照：`uv tool install --force "mihomo-ctrl[tui] @ git+https://github.com/wonder-missing/mihomo-ctrl"`
-- 全局已经配好：`uv run` 会自动加载项目目录里的 `.env`。
+- 要跑 Python 时用 `uv run`，不要直接 `python`，这样才能用上项目自己的版本和虚拟环境。运行时配置见 README 与 `.env.example`。
+- 安装与升级见 README。用 `uv tool` 从 Git 安装时，推送之后执行 `uv tool upgrade mihomo-ctrl` 才会换到新提交。在仓库目录试未提交的改动：`uv tool install --force --editable ".[tui]"`。改回 Git 快照：`uv tool install --force "mihomo-ctrl[tui] @ git+https://github.com/wonder-missing/mihomo-ctrl"`。
 
 ## 🎯 核心开发纪律
 
