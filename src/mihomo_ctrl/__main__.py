@@ -9,6 +9,7 @@ from pathlib import Path
 
 from mihomo_ctrl.cache import detect_cache_path, reset_cache
 from mihomo_ctrl.client import (
+    LOG_READ_TIMEOUT,
     MihomoClient,
     ProxyGroup,
     cross_level_switch_target,
@@ -128,6 +129,32 @@ def cmd_tui(_args: argparse.Namespace) -> None:
     run_tui()
 
 
+def cmd_logs(args: argparse.Namespace) -> None:
+    # -f 持续跟随。接口没有历史，-n 无法先回放再跟，所以跟随时不截断。
+    limit = None if args.follow else args.lines
+    try:
+        with MihomoClient() as client:
+            for line in client.read_logs(level=args.level, limit=limit):
+                print(line, flush=True)
+    except BrokenPipeError:
+        return
+    except KeyboardInterrupt:
+        return
+
+
+def cmd_reload(args: argparse.Namespace) -> None:
+    raw = args.path or ""
+    path = str(Path(raw).expanduser()) if raw else ""
+    if path and not Path(path).is_absolute():
+        raise MihomoError(f"配置路径必须是绝对路径: {path}")
+    with MihomoClient() as client:
+        client.reload(path)
+    if path:
+        print(f"Reloaded config: {path}")
+    else:
+        print("Reloaded startup config")
+
+
 def cmd_reset(args: argparse.Namespace) -> None:
     path = Path(args.path).expanduser() if args.path else detect_cache_path()
     target = path.resolve()
@@ -197,6 +224,10 @@ def build_parser() -> argparse.ArgumentParser:
   mihomo-ctrl switch 默认 美国
   mihomo-ctrl switch 美国 '<节点名>'
   mihomo-ctrl unpin 自动选择
+  mihomo-ctrl logs -n 20
+  mihomo-ctrl logs -f
+  mihomo-ctrl reload
+  mihomo-ctrl reload /absolute/path/config.yaml
 
 环境变量（装好的 CLI 只读 shell 环境；仓库里 uv run 会额外加载 .env）:
   MIHOMO_API_URL        External Controller 地址（默认 http://127.0.0.1:9090）
@@ -256,6 +287,56 @@ def build_parser() -> argparse.ArgumentParser:
     p_unpin.add_argument("group", help="代理组名")
     p_unpin.set_defaults(func=cmd_unpin)
 
+    idle = f"{LOG_READ_TIMEOUT:g}"
+    p_logs = subparsers.add_parser(
+        "logs",
+        help="打印实时日志；-n 收满退出，-f 持续跟随",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "打印实时日志（GET /logs）。接口只推送连上之后的新日志，没有历史。\n"
+            f"不带 -f 时最多打印 N 行（默认 10）；安静超过 {idle} 秒没新日志也会停。\n"
+            "带 -f 时持续跟随，直到中断；此时 -n 不截断。"
+        ),
+    )
+    p_logs.add_argument(
+        "-n",
+        "--lines",
+        type=_positive_int,
+        default=10,
+        metavar="N",
+        help="最多打印的行数（默认 10）。只在不带 -f 时生效",
+    )
+    p_logs.add_argument(
+        "-f",
+        "--follow",
+        action="store_true",
+        help="持续跟随，直到中断",
+    )
+    p_logs.add_argument(
+        "--level",
+        choices=("debug", "info", "warning", "error"),
+        help="最低级别（省略则由内核默认，通常是 info）",
+    )
+    p_logs.set_defaults(func=cmd_logs)
+
+    p_reload = subparsers.add_parser(
+        "reload",
+        help="重载配置（PUT /configs?force=true）",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "重载配置：PUT /configs?force=true，正文 {\"path\", \"payload\"}。\n"
+            "省略路径时 path 为空，内核重载自己启动时的那份配置"
+            "（-d 目录下的 config.yaml）。\n"
+            "传入的路径必须是绝对路径，且在内核的安全路径内。"
+        ),
+    )
+    p_reload.add_argument(
+        "path",
+        nargs="?",
+        help="配置文件绝对路径（省略则重载启动时的那份）",
+    )
+    p_reload.set_defaults(func=cmd_reload)
+
     p_reset = subparsers.add_parser(
         "reset",
         aliases=["clear-cache"],
@@ -274,6 +355,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_tui.set_defaults(func=cmd_tui)
     return parser
+
+
+def _positive_int(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("行数必须是正整数") from exc
+    if number < 1:
+        raise argparse.ArgumentTypeError("行数必须是正整数")
+    return number
 
 
 def _print_groups(groups: list[ProxyGroup]) -> None:

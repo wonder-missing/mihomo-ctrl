@@ -8,6 +8,8 @@ from mihomo_ctrl.__main__ import (
     _print_groups,
     build_parser,
     cmd_list_proxy_groups,
+    cmd_logs,
+    cmd_reload,
     cmd_switch,
     cmd_unpin,
     resolve_switch_target,
@@ -38,6 +40,16 @@ def test_parser_aliases() -> None:
     args = parser.parse_args(["unpin", "自动选择"])
     assert args.command == "unpin"
     assert args.group == "自动选择"
+    logs = parser.parse_args(["logs"])
+    assert logs.lines == 10
+    assert logs.follow is False
+    assert logs.level is None
+    followed = parser.parse_args(["logs", "-n", "3", "-f", "--level", "warning"])
+    assert followed.lines == 3
+    assert followed.follow is True
+    assert followed.level == "warning"
+    assert parser.parse_args(["reload"]).path is None
+    assert parser.parse_args(["reload", "/tmp/c.yaml"]).path == "/tmp/c.yaml"
 
 
 def test_version_option_prints_package_version(capsys) -> None:
@@ -133,6 +145,64 @@ def test_cmd_unpin_deletes_when_pinned(capsys) -> None:
         cmd_unpin(SimpleNamespace(group="自动选择"))
     client.unpin.assert_called_once_with("自动选择")
     assert "Unpinned" in capsys.readouterr().out
+
+
+def test_parser_rejects_non_positive_line_count() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["logs", "-n", "0"])
+
+
+def test_cmd_logs_limits_when_not_following(capsys) -> None:
+    client = MagicMock()
+    client.__enter__.return_value = client
+    client.read_logs.return_value = iter(["10:00:01 [info] one"])
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
+        cmd_logs(SimpleNamespace(follow=False, lines=4, level=None))
+    client.read_logs.assert_called_once_with(level=None, limit=4)
+    assert "one" in capsys.readouterr().out
+
+
+def test_cmd_logs_follow_does_not_cap() -> None:
+    client = MagicMock()
+    client.__enter__.return_value = client
+    client.read_logs.return_value = iter(())
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
+        cmd_logs(SimpleNamespace(follow=True, lines=4, level="debug"))
+    client.read_logs.assert_called_once_with(level="debug", limit=None)
+
+
+def test_cmd_logs_keyboard_interrupt_is_quiet(capsys) -> None:
+    client = MagicMock()
+    client.__enter__.return_value = client
+    client.read_logs.side_effect = KeyboardInterrupt
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
+        cmd_logs(SimpleNamespace(follow=True, lines=10, level=None))
+    assert capsys.readouterr().out == ""
+
+
+def test_cmd_reload_rejects_relative_path() -> None:
+    with pytest.raises(MihomoError, match="绝对路径"):
+        cmd_reload(SimpleNamespace(path="config.yaml"))
+
+
+def test_cmd_reload_expands_home_and_prints(capsys) -> None:
+    client = MagicMock()
+    client.__enter__.return_value = client
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
+        cmd_reload(SimpleNamespace(path="~/mihomo/config.yaml"))
+    path = client.reload.call_args.args[0]
+    assert path.startswith("/")
+    assert path.endswith("/mihomo/config.yaml")
+    assert f"Reloaded config: {path}" in capsys.readouterr().out
+
+
+def test_cmd_reload_empty_uses_startup_config(capsys) -> None:
+    client = MagicMock()
+    client.__enter__.return_value = client
+    with patch("mihomo_ctrl.__main__.MihomoClient", return_value=client):
+        cmd_reload(SimpleNamespace(path=None))
+    client.reload.assert_called_once_with("")
+    assert "Reloaded startup config" in capsys.readouterr().out
 
 
 def test_cmd_unpin_reports_when_still_pinned() -> None:

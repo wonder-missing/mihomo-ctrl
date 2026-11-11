@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
+import socket
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from http.client import HTTPException
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 from mihomo_ctrl.config import Settings, settings
@@ -15,6 +17,8 @@ from mihomo_ctrl.errors import MihomoAPIError, MihomoConnectionError, MihomoErro
 logger = logging.getLogger(__name__)
 
 HTTP_TIMEOUT = 5.0
+# 非跟随模式下，一次读超时就停。跟随模式把同一次超时当成「还活着，继续等」。
+LOG_READ_TIMEOUT = 15.0
 
 SYSTEM_BUILTINS = frozenset(
     {
@@ -106,6 +110,75 @@ def is_group(name: str, proxies: Mapping[str, Any]) -> bool:
     return isinstance(info, Mapping) and "all" in info
 
 
+def logs_query_path(level: str | None) -> str:
+    pairs: list[tuple[str, str]] = []
+    if level:
+        pairs.append(("level", level))
+    pairs.append(("format", "structured"))
+    return "/logs?" + urlencode(pairs)
+
+
+def format_log_line(record: Mapping[str, Any]) -> str | None:
+    # 结构化（time/level/message）和旧格式（type/payload）都认。
+    if "message" in record:
+        message = record.get("message")
+        if not isinstance(message, str):
+            return None
+        level = record.get("level")
+        level_text = level if isinstance(level, str) and level else "?"
+        suffix = _field_suffix(record.get("fields"))
+        body = f"[{level_text}] {message}{suffix}"
+        stamp = record.get("time")
+        if isinstance(stamp, str) and stamp:
+            return f"{stamp} {body}"
+        return body
+
+    payload = record.get("payload")
+    if not isinstance(payload, str):
+        return None
+    kind = record.get("type")
+    kind_text = kind if isinstance(kind, str) and kind else "?"
+    return f"[{kind_text}] {payload}"
+
+
+def _format_raw_log(raw: bytes) -> str | None:
+    try:
+        text = raw.decode().strip()
+    except UnicodeError:
+        logger.debug("skip undecodable log line")
+        return None
+    if not text:
+        return None
+    try:
+        record = json.loads(text)
+    except ValueError:
+        logger.debug("skip non-json log line: %s", text)
+        return None
+    if not isinstance(record, Mapping):
+        logger.debug("skip non-object log line: %s", text)
+        return None
+    line = format_log_line(record)
+    if line is None:
+        logger.debug("skip unrecognized log record: %s", text)
+    return line
+
+
+def _field_suffix(fields: object) -> str:
+    if not isinstance(fields, list):
+        return ""
+    parts: list[str] = []
+    for item in fields:
+        if not isinstance(item, Mapping):
+            continue
+        key = item.get("key")
+        if not isinstance(key, str) or not key:
+            continue
+        parts.append(f"{key}={item.get('value')}")
+    if not parts:
+        return ""
+    return " " + " ".join(parts)
+
+
 def cross_level_switch_target(
     group: ProxyGroup, target: str, proxies: Mapping[str, Any]
 ) -> bool:
@@ -154,6 +227,32 @@ class MihomoClient:
     def request(
         self, method: str, path: str, data: dict[str, Any] | None = None
     ) -> Any:
+        with self._open(method, path, data, HTTP_TIMEOUT) as response:
+            status = getattr(response, "status", 200)
+            raw = response.read()
+
+        if status == 204 or not raw:
+            return {}
+        try:
+            return json.loads(raw.decode())
+        except (ValueError, UnicodeError) as exc:
+            logger.error(
+                "Mihomo API %s %s returned invalid payload: %s",
+                method,
+                path,
+                exc,
+            )
+            raise MihomoAPIError(
+                status, f"Invalid JSON from Mihomo API (HTTP {status})"
+            ) from exc
+
+    def _open(
+        self,
+        method: str,
+        path: str,
+        data: dict[str, Any] | None,
+        timeout: float,
+    ) -> Any:
         url = f"{self.config.api_url}{path}"
         headers: dict[str, str] = {}
         if self.config.secret:
@@ -165,9 +264,7 @@ class MihomoClient:
 
         req = Request(url, data=body, headers=headers, method=method)
         try:
-            with urlopen(req, timeout=HTTP_TIMEOUT) as response:
-                status = getattr(response, "status", 200)
-                raw = response.read()
+            return urlopen(req, timeout=timeout)
         except HTTPError as exc:
             message = _error_from_http(exc)
             logger.error(
@@ -185,20 +282,37 @@ class MihomoClient:
             logger.error("cannot reach Mihomo API %s: %s", url, exc)
             raise MihomoConnectionError(self.config.api_url, str(exc)) from exc
 
-        if status == 204 or not raw:
-            return {}
-        try:
-            return json.loads(raw.decode())
-        except (ValueError, UnicodeError) as exc:
-            logger.error(
-                "Mihomo API %s %s returned invalid payload: %s",
-                method,
-                path,
-                exc,
-            )
-            raise MihomoAPIError(
-                status, f"Invalid JSON from Mihomo API (HTTP {status})"
-            ) from exc
+    def read_logs(
+        self, level: str | None = None, limit: int | None = None
+    ) -> Iterator[str]:
+        # limit 为 None 时跟随；否则收满，或一次读超时，就停。
+        path = logs_query_path(level)
+        with self._open("GET", path, None, LOG_READ_TIMEOUT) as response:
+            yielded = 0
+            while limit is None or yielded < limit:
+                try:
+                    raw = response.readline()
+                except (TimeoutError, socket.timeout):
+                    if limit is None:
+                        continue
+                    logger.info("log stream idle after %s lines", yielded)
+                    return
+                except (OSError, HTTPException) as exc:
+                    logger.error("log stream %s broke: %s", path, exc)
+                    raise MihomoConnectionError(self.config.api_url, str(exc)) from exc
+                if not raw:
+                    logger.info("log stream closed after %s lines", yielded)
+                    return
+                line = _format_raw_log(raw)
+                if line is None:
+                    continue
+                yielded += 1
+                yield line
+
+    def reload(self, path: str = "") -> None:
+        """PUT /configs?force=true。path 为空时内核重载自己启动时的配置。"""
+        self.request("PUT", "/configs?force=true", {"path": path, "payload": ""})
+        logger.info("reloaded config path=%r", path or "<startup>")
 
     def proxies(self) -> dict[str, Any]:
         payload = self.request("GET", "/proxies")

@@ -11,12 +11,15 @@ from urllib.parse import quote
 from urllib.request import Request
 
 from mihomo_ctrl.client import (
+    LOG_READ_TIMEOUT,
     MihomoClient,
     ProxyGroup,
     cross_level_switch_target,
     delay_sort_key,
+    format_log_line,
     is_noise_or_group,
     latest_delay,
+    logs_query_path,
     nodes_by_delay,
     nodes_for_group,
     uses_member_order,
@@ -424,3 +427,142 @@ def test_unpin_sends_delete() -> None:
     assert request.get_method() == "DELETE"
     assert quote("自动选择", safe="") in request.full_url
     assert request.data is None
+
+
+def test_logs_query_path_puts_level_before_format() -> None:
+    assert logs_query_path(None) == "/logs?format=structured"
+    assert logs_query_path("debug") == "/logs?level=debug&format=structured"
+
+
+def test_format_log_line_accepts_structured_and_classic() -> None:
+    structured = {
+        "time": "10:00:01",
+        "level": "warn",
+        "message": "one",
+        "fields": [{"key": "src", "value": "a"}, {"key": "dst", "value": "b"}],
+    }
+    assert format_log_line(structured) == "10:00:01 [warn] one src=a dst=b"
+    assert format_log_line({"level": "", "message": "bare"}) == "[?] bare"
+    assert format_log_line({"type": "error", "payload": "boom"}) == "[error] boom"
+    assert format_log_line({"message": 1}) is None
+    assert format_log_line({}) is None
+
+
+class _LogStream:
+    def __init__(self, events: list[bytes | None]) -> None:
+        self._events = list(events)
+        self.closed = False
+
+    def readline(self) -> bytes:
+        if not self._events:
+            return b""
+        event = self._events.pop(0)
+        if event is None:
+            raise TimeoutError("idle")
+        return event
+
+    def __enter__(self) -> _LogStream:
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        self.closed = True
+
+
+def test_read_logs_stops_at_limit_and_skips_junk() -> None:
+    seen: list[Request] = []
+
+    def handler(request: Request, timeout: float | None = None) -> _LogStream:
+        seen.append(request)
+        assert timeout == LOG_READ_TIMEOUT
+        assert request.get_header("Authorization") == "Bearer s3cret"
+        return _LogStream(
+            [
+                b"\n",
+                b"not-json\n",
+                b'{"time":"10:00:01","level":"info","message":"one"}\n',
+                b'{"type":"error","payload":"two"}\n',
+            ]
+        )
+
+    with _patch_urlopen(handler), _client() as client:
+        lines = list(client.read_logs(level="info", limit=1))
+
+    assert lines == ["10:00:01 [info] one"]
+    assert seen[0].full_url.endswith("/logs?level=info&format=structured")
+    assert seen[0].get_method() == "GET"
+
+
+def test_read_logs_follow_continues_after_idle() -> None:
+    def handler(_request: Request, timeout: float | None = None) -> _LogStream:
+        return _LogStream(
+            [None, b'{"type":"info","payload":"later"}\n', b""]
+        )
+
+    with _patch_urlopen(handler), _client() as client:
+        lines = list(client.read_logs(limit=None))
+    assert lines == ["[info] later"]
+
+
+def test_read_logs_stops_when_idle_before_limit() -> None:
+    def handler(_request: Request, timeout: float | None = None) -> _LogStream:
+        return _LogStream([b'{"type":"info","payload":"one"}\n', None])
+
+    with _patch_urlopen(handler), _client() as client:
+        lines = list(client.read_logs(limit=5))
+    assert lines == ["[info] one"]
+
+
+def test_read_logs_broken_stream_is_connection_error() -> None:
+    class _Boom:
+        def readline(self) -> bytes:
+            raise ConnectionResetError("reset")
+
+        def __enter__(self) -> _Boom:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    def handler(_request: Request, timeout: float | None = None) -> _Boom:
+        return _Boom()
+
+    try:
+        with _patch_urlopen(handler), _client() as client:
+            list(client.read_logs(limit=3))
+    except MihomoConnectionError as exc:
+        assert "reset" in str(exc)
+    else:
+        raise AssertionError("expected MihomoConnectionError")
+
+
+def test_reload_puts_force_and_path() -> None:
+    seen: list[Request] = []
+
+    def handler(request: Request, timeout: float | None = None) -> _FakeResponse:
+        seen.append(request)
+        assert timeout == 5.0
+        return _FakeResponse(204)
+
+    path = "/opt/homebrew/etc/mihomo/config.yaml"
+    with _patch_urlopen(handler), _client() as client:
+        client.reload(path)
+
+    request = seen[0]
+    assert request.get_method() == "PUT"
+    assert request.full_url.endswith("/configs?force=true")
+    assert isinstance(request.data, bytes)
+    assert json.loads(request.data.decode()) == {"path": path, "payload": ""}
+
+
+def test_reload_empty_path_uses_startup_config() -> None:
+    seen: list[Request] = []
+
+    def handler(request: Request, timeout: float | None = None) -> _FakeResponse:
+        seen.append(request)
+        return _FakeResponse(204)
+
+    with _patch_urlopen(handler), _client() as client:
+        client.reload()
+
+    assert isinstance(seen[0].data, bytes)
+    assert json.loads(seen[0].data.decode()) == {"path": "", "payload": ""}
